@@ -233,6 +233,78 @@
       vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* DOM Tree */
+    .dom-tree {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      padding: 12px;
+      overflow: auto;
+      max-height: 600px;
+    }
+    .dom-tree ul {
+      list-style: none;
+      padding-left: 20px;
+      margin: 0;
+      border-left: 1px solid var(--border);
+    }
+    .dom-tree > ul { border-left: none; padding-left: 0; }
+    .dom-tree li { position: relative; }
+    .dom-node { display: inline; }
+    .dom-toggle {
+      display: inline-block;
+      width: 16px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--muted);
+      user-select: none;
+      font-size: 10px;
+      vertical-align: middle;
+    }
+    .dom-toggle:hover { color: var(--accent); }
+    .dom-tag { color: #e06c75; }
+    .dom-attr-name { color: #d19a66; }
+    .dom-attr-value { color: #98c379; }
+    .dom-text {
+      color: var(--text);
+      opacity: 0.8;
+      font-style: italic;
+    }
+    .dom-comment { color: var(--muted); font-style: italic; }
+    .dom-bracket { color: var(--muted); }
+    .dom-children.collapsed { display: none; }
+    .dom-ellipsis {
+      color: var(--muted);
+      cursor: pointer;
+      background: rgba(108,140,255,.08);
+      padding: 0 4px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .dom-ellipsis:hover { background: rgba(108,140,255,.18); }
+    .dom-node-inline { display: inline; }
+    /* View mode tabs */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+    }
+    .view-tab {
+      padding: 6px 16px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .view-pane { display: none; }
+    .view-pane.active { display: block; }
   </style>
 </head>
 <body>
@@ -367,11 +439,18 @@
             </div>
             <div class="form-group">
               <label>Property</label>
-              <select id="domProp">
-                <option value="outerHTML">outerHTML</option>
-                <option value="innerHTML">innerHTML</option>
-                <option value="innerText" selected>innerText</option>
-              </select>
+              <input type="text" id="domProp" list="domPropList" value="innerText" placeholder="e.g. innerText">
+              <datalist id="domPropList">
+                <option value="outerHTML">
+                <option value="innerHTML">
+                <option value="innerText">
+                <option value="textContent">
+                <option value="className">
+                <option value="id">
+                <option value="href">
+                <option value="src">
+                <option value="value">
+              </datalist>
             </div>
             <div class="form-group">
               <label>Match All</label>
@@ -503,6 +582,138 @@ function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// ── DOM Tree Renderer ───────────────────────────────────
+function renderDomTree(htmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, 'text/html');
+
+  function hasVisibleContent(node) {
+    if (node.nodeType === 3) return node.textContent.trim().length > 0;
+    if (node.nodeType === 8) return true;
+    if (node.nodeType === 1) return true;
+    return false;
+  }
+
+  function buildNode(node) {
+    if (node.nodeType === 3) {
+      const text = node.textContent.trim();
+      if (!text) return '';
+      const display = text.length > 120 ? text.slice(0, 120) + '…' : text;
+      return `<span class="dom-text">${escapeHtml(display)}</span>`;
+    }
+
+    if (node.nodeType === 8) {
+      const text = node.textContent.trim();
+      return `<span class="dom-comment">&lt;!-- ${escapeHtml(text)} --&gt;</span>`;
+    }
+
+    if (node.nodeType !== 1) return '';
+
+    const tag = node.tagName.toLowerCase();
+    let attrs = '';
+    for (const attr of node.attributes) {
+      attrs += ` <span class="dom-attr-name">${escapeHtml(attr.name)}</span>`;
+      if (attr.value) {
+        attrs += `=<span class="dom-attr-value">"${escapeHtml(attr.value)}"</span>`;
+      }
+    }
+
+    const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+    if (voidTags.has(tag)) {
+      return `<span class="dom-bracket">&lt;</span><span class="dom-tag">${tag}</span>${attrs}<span class="dom-bracket"> /&gt;</span>`;
+    }
+
+    const children = Array.from(node.childNodes).filter(hasVisibleContent);
+
+    // Leaf or text-only node: render inline
+    if (children.length === 0) {
+      return `<span class="dom-bracket">&lt;</span><span class="dom-tag">${tag}</span>${attrs}<span class="dom-bracket">&gt;&lt;/</span><span class="dom-tag">${tag}</span><span class="dom-bracket">&gt;</span>`;
+    }
+
+    if (children.length === 1 && children[0].nodeType === 3 && children[0].textContent.trim().length < 80) {
+      const text = children[0].textContent.trim();
+      return `<span class="dom-bracket">&lt;</span><span class="dom-tag">${tag}</span>${attrs}<span class="dom-bracket">&gt;</span><span class="dom-text">${escapeHtml(text)}</span><span class="dom-bracket">&lt;/</span><span class="dom-tag">${tag}</span><span class="dom-bracket">&gt;</span>`;
+    }
+
+    // Node with children: collapsible
+    const id = 'dn' + Math.random().toString(36).slice(2, 8);
+    let childrenHtml = '';
+    for (const child of children) {
+      const rendered = buildNode(child);
+      if (rendered) childrenHtml += `<li>${rendered}</li>`;
+    }
+
+    return `<span class="dom-toggle" onclick="toggleDomNode('${id}')">▼</span><span class="dom-bracket">&lt;</span><span class="dom-tag">${tag}</span>${attrs}<span class="dom-bracket">&gt;</span><span class="dom-ellipsis" id="${id}-ellipsis" style="display:none" onclick="toggleDomNode('${id}')">…</span><ul class="dom-children" id="${id}">${childrenHtml}</ul><span class="dom-bracket">&lt;/</span><span class="dom-tag">${tag}</span><span class="dom-bracket">&gt;</span>`;
+  }
+
+  // Build from html/head/body
+  let items = '';
+  const doctype = '<!DOCTYPE html>';
+  items += `<li><span class="dom-comment">${escapeHtml(doctype)}</span></li>`;
+  const htmlEl = doc.documentElement;
+  if (htmlEl) {
+    items += `<li>${buildNode(htmlEl)}</li>`;
+  }
+
+  return `<ul>${items}</ul>`;
+}
+
+function toggleDomNode(id) {
+  const ul = document.getElementById(id);
+  const ellipsis = document.getElementById(id + '-ellipsis');
+  const toggle = ul.parentElement.querySelector('.dom-toggle');
+  if (ul.classList.contains('collapsed')) {
+    ul.classList.remove('collapsed');
+    ellipsis.style.display = 'none';
+    toggle.textContent = '▼';
+  } else {
+    ul.classList.add('collapsed');
+    ellipsis.style.display = 'inline';
+    toggle.textContent = '▶';
+  }
+}
+
+function renderContentOutput(containerId, data, duration) {
+  const c = document.getElementById(containerId);
+  const content = data.content || '';
+  const isHtml = (data.format === 'html' || content.trim().startsWith('<'));
+
+  let treeHtml = '';
+  if (isHtml) {
+    try { treeHtml = renderDomTree(content); } catch(e) { treeHtml = `<div style="color:var(--error)">Tree parse error: ${escapeHtml(e.message)}</div>`; }
+  }
+
+  const json = JSON.stringify(data, null, 2);
+  const hasTree = isHtml && treeHtml;
+
+  c.innerHTML = `
+    <div class="output-block">
+      <div class="output-header">
+        <span>${duration}ms &nbsp; ${(content.length / 1024).toFixed(1)}KB</span>
+        <span class="tag ok">OK</span>
+      </div>
+      ${hasTree ? `
+      <div style="padding: 0 12px; border-bottom: 1px solid var(--border);">
+        <div class="view-tabs">
+          <button class="view-tab active" onclick="switchContentView(this, '${containerId}', 'tree')">DOM Tree</button>
+          <button class="view-tab" onclick="switchContentView(this, '${containerId}', 'raw')">Raw</button>
+        </div>
+      </div>
+      <div class="view-pane active dom-tree" data-view="tree" data-container="${containerId}">${treeHtml}</div>
+      <div class="view-pane output-body" data-view="raw" data-container="${containerId}">${escapeHtml(json)}</div>
+      ` : `<div class="output-body">${escapeHtml(json)}</div>`}
+    </div>`;
+}
+
+function switchContentView(btn, containerId, view) {
+  const block = btn.closest('.output-block');
+  block.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  block.querySelectorAll('.view-pane').forEach(p => {
+    p.classList.toggle('active', p.dataset.view === view);
+  });
+}
+
 async function run(outputId, fn) {
   const t0 = performance.now();
   try {
@@ -553,7 +764,7 @@ async function doGetContent() {
   const r = await run('gcOutput', () => api('getContent', {
     body: { tabId: numOrUndef('gcTabId'), format: val('gcFormat') }
   }));
-  if (r) renderOutput('gcOutput', r.data, { duration: r.ms });
+  if (r) renderContentOutput('gcOutput', r.data, r.ms);
 }
 
 async function doListTabs() {

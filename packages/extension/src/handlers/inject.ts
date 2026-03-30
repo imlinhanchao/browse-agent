@@ -18,7 +18,13 @@ export async function handleInjectScript(cmd: InjectScriptCommand): Promise<Inje
   if (cmd.code) {
     const results = await chrome.scripting.executeScript({
       target: { tabId },
-      func: new Function('return (' + cmd.code + ')') as () => unknown,
+      func: (code: string) => {
+        const script = document.createElement('script');
+        script.textContent = code;
+        document.documentElement.appendChild(script);
+        script.remove();
+      },
+      args: [cmd.code],
       world: 'MAIN',
     });
     return { result: results[0]?.result ?? null };
@@ -93,7 +99,14 @@ export async function handleEvaluate(cmd: EvaluateCommand): Promise<EvaluateResu
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: (expr: string) => {
-      return new Function(`return (${expr})`)();
+      const script = document.createElement('script');
+      const resultKey = '__browseAgentEvalResult_' + Date.now();
+      script.textContent = `window["${resultKey}"] = (function(){ try { return ${expr}; } catch(e) { return { __error: e.message }; } })();`;
+      document.documentElement.appendChild(script);
+      script.remove();
+      const result = (window as any)[resultKey];
+      delete (window as any)[resultKey];
+      return result;
     },
     args: [cmd.expression],
     world: 'MAIN',
