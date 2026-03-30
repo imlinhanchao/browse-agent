@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Agent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Browse Agent</h1>
+
+    <div class="status-section">
+      <div class="status-row">
+        <span>Connection:</span>
+        <span id="connStatus" class="badge disconnected">Disconnected</span>
+      </div>
+      <div class="status-row">
+        <span>Auth:</span>
+        <span id="authStatus" class="badge disconnected">Not authenticated</span>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <label for="wsUrl">WebSocket URL</label>
+      <input type="text" id="wsUrl" placeholder="ws://127.0.0.1:9315" />
+
+      <label for="secret">Shared Secret</label>
+      <input type="password" id="secret" placeholder="Enter shared secret" />
+
+      <div class="btn-group">
+        <button id="saveBtn">Save</button>
+        <button id="reconnectBtn" class="secondary">Reconnect</button>
+      </div>
+    </div>
+
+    <div id="message" class="message" hidden></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

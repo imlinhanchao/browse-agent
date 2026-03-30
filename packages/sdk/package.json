@@ -1,0 +1,28 @@
+{
+  "name": "browse-agent-sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SDK for controlling Chrome browser via Browse Agent extension",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic/browse-agent-shared": "*",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.4.0"
+  },
+  "keywords": ["chrome", "browser", "automation", "websocket", "extension"],
+  "license": "MIT"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "browse-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser automation agent with Chrome extension and SDK",
+  "workspaces": [
+    "packages/shared",
+    "packages/extension",
+    "packages/sdk"
+  ],
+  "scripts": {
+    "build": "npm run build:shared && npm run build:sdk && npm run build:extension",
+    "build:shared": "npm run build -w packages/shared",
+    "build:sdk": "npm run build -w packages/sdk",
+    "build:extension": "npm run build -w packages/extension",
+    "dev:extension": "npm run dev -w packages/extension",
+    "debug": "node examples/debug-server.mjs",
+    "clean": "rm -rf packages/*/dist"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
