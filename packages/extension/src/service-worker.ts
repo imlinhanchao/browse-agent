@@ -14,6 +14,7 @@ import {
 } from './handlers';
 
 let wsClient: WSClient | null = null;
+let initInFlight: Promise<void> | null = null;
 console.log('[BrowseAgent] Service worker loaded');
 
 // --------------------------------------------------------
@@ -47,7 +48,18 @@ async function executeCommand(command: Command): Promise<unknown> {
 // --------------------------------------------------------
 // Initialize WebSocket connection
 // --------------------------------------------------------
-async function initConnection() {
+async function initConnection(reason: string = 'unknown') {
+  if (wsClient?.isConnected || wsClient?.isConnecting) {
+    console.log(`[BrowseAgent] Skip initConnection(${reason}): client already active`);
+    return;
+  }
+
+  if (initInFlight) {
+    console.log(`[BrowseAgent] Skip initConnection(${reason}): init already in-flight`);
+    return initInFlight;
+  }
+
+  initInFlight = (async () => {
   const stored = await chrome.storage.local.get(['wsUrl', 'secret']);
   const wsUrl = stored.wsUrl || `ws://127.0.0.1:${DEFAULT_PORT}`;
   const secret = stored.secret || 'my-secure-secret-change-me';
@@ -57,9 +69,10 @@ async function initConnection() {
     return;
   }
 
-  wsClient = new WSClient(wsUrl, secret);
+  const client = new WSClient(wsUrl, secret);
+  wsClient = client;
 
-  wsClient.setCommandHandler(async (payload, requestId) => {
+  client.setCommandHandler(async (payload, requestId) => {
     let response: CommandResponse;
     try {
       const data = await executeCommand(payload.command);
@@ -72,18 +85,30 @@ async function initConnection() {
       };
     }
 
-    await wsClient!.sendResponse(requestId, {
+    await client.sendResponse(requestId, {
       type: 'commandResponse',
       response,
     });
   });
 
   try {
-    await wsClient.connect();
-    console.log('[BrowseAgent] Connected to server:', wsUrl);
+    await client.connect();
+    if (wsClient !== client) {
+      // A newer client replaced this one while it was connecting.
+      client.disconnect();
+      return;
+    }
+    console.log('[BrowseAgent] Connected to server:', wsUrl, `(reason=${reason})`);
   } catch (err) {
     console.error('[BrowseAgent] Failed to connect:', err);
+  } finally {
+    if (initInFlight) {
+      initInFlight = null;
+    }
   }
+  })();
+
+  return initInFlight;
 }
 
 // --------------------------------------------------------
@@ -93,11 +118,11 @@ async function initConnection() {
 // Start connection on install/startup
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[BrowseAgent] Extension installed');
-  initConnection();
+  initConnection('onInstalled');
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  initConnection();
+  initConnection('onStartup');
 });
 
 // Re-init when settings change
@@ -105,7 +130,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && (changes.wsUrl || changes.secret)) {
     console.log('[BrowseAgent] Settings changed, reconnecting...');
     wsClient?.disconnect();
-    initConnection();
+    wsClient = null;
+    initInFlight = null;
+    initConnection('settingsChanged');
   }
 });
 
@@ -120,8 +147,8 @@ if (chrome.alarms) {
         } catch {
           // Will reconnect automatically
         }
-      } else if (!wsClient?.isConnected) {
-        initConnection();
+      } else if (!wsClient?.isConnected && !wsClient?.isConnecting) {
+        initConnection('alarm');
       }
     }
   });
@@ -138,11 +165,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     });
   } else if (message.type === 'reconnect') {
     wsClient?.disconnect();
-    initConnection().then(() => sendResponse({ ok: true }));
+    wsClient = null;
+    initInFlight = null;
+    initConnection('popupReconnect').then(() => sendResponse({ ok: true }));
     return true; // async response
   }
   return false;
 });
 
 // Auto-connect on load
-initConnection();
+initConnection('autoLoad');

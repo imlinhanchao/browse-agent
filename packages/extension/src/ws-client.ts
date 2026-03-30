@@ -179,6 +179,10 @@ export class WSClient {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
+  get isConnecting(): boolean {
+    return this.ws?.readyState === WebSocket.CONNECTING;
+  }
+
   get isAuthenticated(): boolean {
     return this.authenticated;
   }

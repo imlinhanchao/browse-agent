@@ -38,6 +38,11 @@ export class WSServer {
   private onConnected: (() => void) | null = null;
   private onDisconnected: (() => void) | null = null;
 
+  private formatId(id: string): string {
+    if (id.length <= 12) return id;
+    return `${id.slice(0, 6)}...${id.slice(-4)}`;
+  }
+
   constructor(options: WSServerOptions) {
     this.secret = options.secret;
     this.port = options.port ?? DEFAULT_PORT;
@@ -55,7 +60,11 @@ export class WSServer {
         // Only accept connections from localhost
         verifyClient: (info: { origin: string; req: IncomingMessage }) => {
           const addr = info.req.socket.remoteAddress;
-          return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+          const accepted = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+          if (!accepted) {
+            console.warn(`[BrowseAgent SDK] Rejected non-local connection from ${addr ?? 'unknown'}`);
+          }
+          return accepted;
         },
       });
 
@@ -77,6 +86,7 @@ export class WSServer {
   private handleConnection(ws: WebSocket) {
     // Only allow one client at a time
     if (this.client) {
+      console.warn('[BrowseAgent SDK] Rejecting additional extension client: already connected');
       ws.close(1013, 'Only one client allowed');
       return;
     }
@@ -87,6 +97,7 @@ export class WSServer {
 
     // Send auth challenge
     this.challenge = generateNonce(32);
+    console.log(`[BrowseAgent SDK] Sending auth challenge (${this.challenge.length} hex chars)`);
     this.sendRaw(ws, {
       type: 'auth',
       challenge: this.challenge,
@@ -96,11 +107,15 @@ export class WSServer {
       this.handleMessage(ws, raw.toString());
     });
 
-    ws.on('close', () => {
-      console.log('[BrowseAgent SDK] Extension disconnected');
+    ws.on('close', (code, reason) => {
+      const reasonText = reason?.toString() || '<empty>';
+      console.log(`[BrowseAgent SDK] Extension disconnected (code=${code}, reason=${reasonText})`);
       this.client = null;
       this.authenticated = false;
       // Reject all pending responses
+      if (this.pendingResponses.size > 0) {
+        console.warn(`[BrowseAgent SDK] Rejecting ${this.pendingResponses.size} pending request(s) due to disconnect`);
+      }
       for (const [id, pending] of this.pendingResponses) {
         clearTimeout(pending.timer);
         pending.reject(new Error('Connection lost'));
@@ -131,9 +146,11 @@ export class WSServer {
     }
 
     const { payload } = message;
+    console.log(`[BrowseAgent SDK] <- message id=${this.formatId(message.id)} type=${payload.type}`);
 
     // Handle auth response from extension
     if (payload.type === 'authResponse' && this.challenge) {
+      console.log('[BrowseAgent SDK] Received auth response, verifying HMAC...');
       const expectedHmac = await computeHMAC(this.secret, this.challenge);
       if (payload.hmac !== expectedHmac) {
         console.error('[BrowseAgent SDK] Authentication failed - invalid HMAC');
@@ -179,13 +196,20 @@ export class WSServer {
         clearTimeout(pending.timer);
         this.pendingResponses.delete(requestId);
         if (cmdResp.response.success) {
+          console.log(`[BrowseAgent SDK] <- commandResponse ok requestId=${this.formatId(requestId)}`);
           pending.resolve(cmdResp.response.data);
         } else {
+          console.warn(
+            `[BrowseAgent SDK] <- commandResponse error requestId=${this.formatId(requestId)} error=${cmdResp.response.error}`
+          );
           pending.reject(new Error(cmdResp.response.error));
         }
+      } else {
+        console.warn(`[BrowseAgent SDK] Received response for unknown requestId=${this.formatId(requestId)}`);
       }
     } else if (payload.type === 'pong') {
       // Keepalive response, nothing to do
+      console.log('[BrowseAgent SDK] <- pong');
     }
   }
 
@@ -200,8 +224,14 @@ export class WSServer {
       }
 
       const requestId = generateId();
+      console.log(
+        `[BrowseAgent SDK] -> command requestId=${this.formatId(requestId)} type=${command.type} timeout=${timeout}ms`
+      );
       const timer = setTimeout(() => {
         this.pendingResponses.delete(requestId);
+        console.warn(
+          `[BrowseAgent SDK] Command timed out requestId=${this.formatId(requestId)} type=${command.type} after ${timeout}ms`
+        );
         reject(new Error(`Command timeout after ${timeout}ms`));
       }, timeout);
 
@@ -226,6 +256,7 @@ export class WSServer {
     const timestamp = Date.now();
     const signature = await signMessage(this.secret, id, timestamp, payload);
     const message: WSMessage = { id, timestamp, signature, payload };
+    console.log(`[BrowseAgent SDK] -> signed message id=${this.formatId(id)} type=${payload.type}`);
     this.client.send(JSON.stringify(message));
   }
 
@@ -234,6 +265,7 @@ export class WSServer {
     const timestamp = Date.now();
     const signature = await signMessage(this.secret, id, timestamp, payload);
     const message: WSMessage = { id, timestamp, signature, payload };
+    console.log(`[BrowseAgent SDK] -> raw message id=${this.formatId(id)} type=${payload.type}`);
     ws.send(JSON.stringify(message));
   }
 
@@ -260,6 +292,7 @@ export class WSServer {
    */
   stop(): Promise<void> {
     return new Promise((resolve) => {
+      console.log('[BrowseAgent SDK] Stopping WebSocket server...');
       this.client?.close();
       this.client = null;
       this.authenticated = false;
