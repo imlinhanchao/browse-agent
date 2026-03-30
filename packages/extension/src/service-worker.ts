@@ -110,20 +110,24 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // Keepalive alarm to prevent service worker from dying
-chrome.alarms.create('ws-keepalive', { periodInMinutes: 0.5 });
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'ws-keepalive') {
-    if (wsClient?.isConnected && wsClient?.isAuthenticated) {
-      try {
-        await wsClient.send({ type: 'ping' });
-      } catch {
-        // Will reconnect automatically
+if (chrome.alarms) {
+  chrome.alarms.create('ws-keepalive', { periodInMinutes: 0.5 });
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'ws-keepalive') {
+      if (wsClient?.isConnected && wsClient?.isAuthenticated) {
+        try {
+          await wsClient.send({ type: 'ping' });
+        } catch {
+          // Will reconnect automatically
+        }
+      } else if (!wsClient?.isConnected) {
+        initConnection();
       }
-    } else if (!wsClient?.isConnected) {
-      initConnection();
     }
-  }
-});
+  });
+} else {
+  console.warn('[BrowseAgent] chrome.alarms is unavailable. Add "alarms" to manifest permissions.');
+}
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
