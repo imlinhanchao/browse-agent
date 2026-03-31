@@ -236,8 +236,6 @@
     .content-area {
       flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: auto;
       background: var(--bg);
       position: relative;
@@ -246,6 +244,7 @@
       position: relative;
       display: inline-block;
       cursor: crosshair;
+      margin: auto;
     }
     .viewport-container img {
       display: block;
@@ -260,6 +259,7 @@
       gap: 16px;
       color: var(--muted);
       font-size: 14px;
+      margin: auto;
     }
     .viewport-placeholder .icon {
       font-size: 48px;
@@ -758,8 +758,9 @@ async function simulateClick(pageX, pageY) {
   try {
     const code = `
       (function() {
-        const x = ${Math.round(pageX)};
-        const y = ${Math.round(pageY)};
+        const dpr = window.devicePixelRatio || 1;
+        const x = ${Math.round(pageX)} / dpr;
+        const y = ${Math.round(pageY)} / dpr;
         const el = document.elementFromPoint(x, y);
         if (!el) return { clicked: false, reason: 'no element at point' };
 
@@ -770,10 +771,15 @@ async function simulateClick(pageX, pageY) {
         el.dispatchEvent(new MouseEvent('mouseup', opts));
         el.dispatchEvent(new MouseEvent('click', opts));
 
+        // Focus the element for subsequent keyboard input
+        if (typeof el.focus === 'function') {
+          el.focus();
+        }
+
         // If it's a link, navigate
         const link = el.closest('a[href]');
         if (link && link.href && !link.href.startsWith('javascript:')) {
-          location.href = link.href;
+          link.click();
           return { clicked: true, tag: el.tagName, navigated: link.href };
         }
 
