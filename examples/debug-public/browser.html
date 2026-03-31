@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Agent - Browser Viewer</title>
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --surface: #181825;
+      --surface2: #11111b;
+      --border: #313244;
+      --text: #cdd6f4;
+      --muted: #6c7086;
+      --accent: #89b4fa;
+      --accent-hover: #74c7ec;
+      --tab-bg: #1e1e2e;
+      --tab-active: #313244;
+      --tab-hover: #282838;
+      --green: #a6e3a1;
+      --red: #f38ba8;
+      --yellow: #f9e2af;
+      --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--surface2);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .browser-frame {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Tab Bar ─────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+      min-height: 40px;
+      flex-shrink: 0;
+    }
+    .tab-list {
+      display: flex;
+      flex: 1;
+      overflow-x: auto;
+      padding: 6px 6px 0 6px;
+      gap: 2px;
+      scrollbar-width: none;
+    }
+    .tab-list::-webkit-scrollbar { display: none; }
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      min-width: 120px;
+      max-width: 220px;
+      background: var(--tab-bg);
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: background .15s;
+      font-size: 12px;
+      color: var(--muted);
+      position: relative;
+    }
+    .tab-item:hover { background: var(--tab-hover); }
+    .tab-item.active {
+      background: var(--tab-active);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .tab-item .tab-favicon {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--muted);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+    }
+    .tab-item .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tab-item .tab-close {
+      width: 18px;
+      height: 18px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all .15s;
+    }
+    .tab-item:hover .tab-close { opacity: 1; }
+    .tab-item .tab-close:hover { background: rgba(243,139,168,.2); color: var(--red); }
+    .tab-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .tab-bar-actions button {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+    .tab-bar-actions button:hover { background: var(--tab-hover); color: var(--text); }
+
+    /* ── Address Bar ─────────────────────────────── */
+    .address-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .nav-btn:hover { background: var(--tab-hover); color: var(--text); }
+    .nav-btn:disabled { opacity: .3; cursor: default; }
+    .url-input-wrapper {
+      flex: 1;
+      position: relative;
+    }
+    .url-input {
+      width: 100%;
+      padding: 6px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(137,180,250,.15);
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      font-size: 11px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+    .status-dot.connected { background: var(--green); }
+
+    /* ── Toolbar ──────────────────────────────────── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .toolbar-info { flex: 1; }
+    .toolbar label { margin-right: 4px; }
+    .toolbar input[type="checkbox"] {
+      accent-color: var(--accent);
+      margin-right: 2px;
+      vertical-align: middle;
+    }
+    .toolbar select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    /* ── Content Area ────────────────────────────── */
+    .content-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      background: var(--bg);
+      position: relative;
+    }
+    .viewport-container {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+    }
+    .viewport-container img {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .viewport-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .viewport-placeholder .icon {
+      font-size: 48px;
+      opacity: .3;
+    }
+
+    /* Click indicator */
+    .click-ring {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: clickRipple .5s ease-out forwards;
+    }
+    @keyframes clickRipple {
+      0% { width: 10px; height: 10px; opacity: 1; }
+      100% { width: 40px; height: 40px; opacity: 0; }
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17,17,27,.6);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .loading-overlay.visible { opacity: 1; pointer-events: auto; }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Cursor position tooltip */
+    .cursor-tooltip {
+      position: absolute;
+      padding: 2px 8px;
+      background: rgba(0,0,0,.8);
+      color: #fff;
+      font-size: 10px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 20;
+      display: none;
+      font-family: 'SF Mono', monospace;
+      white-space: nowrap;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+    .toast {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      animation: toastIn .3s ease;
+      max-width: 360px;
+    }
+    .toast.error { border-color: var(--red); color: var(--red); }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
+
+    /* ── Input Bar ────────────────────────────────── */
+    .input-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .input-bar .input-field {
+      flex: 1;
+      padding: 7px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .input-bar .input-field:focus {
+      border-color: var(--accent);
+    }
+    .input-bar .input-field::placeholder { color: var(--muted); }
+    .input-bar .send-btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #11111b;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .input-bar .send-btn:hover { background: var(--accent-hover); }
+    .input-bar .send-btn:disabled { opacity: .4; cursor: default; }
+    .key-buttons {
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .key-btn {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface2);
+      color: var(--muted);
+      font-family: 'SF Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .key-btn:hover { border-color: var(--accent); color: var(--text); background: var(--tab-hover); }
+    .key-btn:active { background: var(--accent); color: #11111b; }
+    .input-mode-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .input-mode-toggle button {
+      padding: 5px 10px;
+      border: none;
+      background: var(--surface2);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .input-mode-toggle button.active { background: var(--accent); color: #11111b; }
+    .input-mode-toggle button:not(.active):hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="browser-frame">
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab-list" id="tabList"></div>
+      <div class="tab-bar-actions">
+        <button title="New Tab (navigate)" id="btnNewTab">+</button>
+        <button title="Refresh tabs" id="btnRefreshTabs">↻</button>
+      </div>
+    </div>
+
+    <!-- Address Bar -->
+    <div class="address-bar">
+      <button class="nav-btn" id="btnBack" title="Back">←</button>
+      <button class="nav-btn" id="btnForward" title="Forward">→</button>
+      <button class="nav-btn" id="btnReload" title="Reload page">↻</button>
+      <div class="url-input-wrapper">
+        <input type="text" class="url-input" id="urlInput" placeholder="Enter URL and press Enter..." spellcheck="false">
+      </div>
+      <div class="status-indicator">
+        <div class="status-dot" id="connDot"></div>
+        <span id="connText">Disconnected</span>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <span class="toolbar-info" id="toolbarInfo">Ready</span>
+      <label>
+        <input type="checkbox" id="autoRefresh" checked>
+        Auto-refresh
+      </label>
+      <label>Interval</label>
+      <select id="refreshInterval">
+        <option value="1000">1s</option>
+        <option value="2000" selected>2s</option>
+        <option value="3000">3s</option>
+        <option value="5000">5s</option>
+      </select>
+      <button class="nav-btn" id="btnScreenshot" title="Take screenshot now" style="font-size:13px">📷</button>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area" id="contentArea">
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+      </div>
+      <div class="cursor-tooltip" id="cursorTooltip"></div>
+
+      <div class="viewport-placeholder" id="placeholder">
+        <div class="icon">🌐</div>
+        <div>Waiting for connection...</div>
+        <div style="font-size:12px">Make sure the Chrome extension is connected</div>
+      </div>
+
+      <div class="viewport-container" id="viewportContainer" style="display:none">
+        <img id="screenshotImg" alt="Page screenshot" draggable="false">
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-bar">
+      <div class="input-mode-toggle">
+        <button class="active" id="modeType" title="Type text into focused element">Type</button>
+        <button id="modeKey" title="Send individual keystrokes">Key</button>
+      </div>
+      <input type="text" class="input-field" id="textInput" placeholder="Type text to send to the focused element..." autocomplete="off" spellcheck="false">
+      <div class="key-buttons" id="keyButtons" style="display:none">
+        <button class="key-btn" data-key="Enter">Enter ↵</button>
+        <button class="key-btn" data-key="Tab">Tab ⇥</button>
+        <button class="key-btn" data-key="Escape">Esc</button>
+        <button class="key-btn" data-key="Backspace">⌫</button>
+        <button class="key-btn" data-key="Delete">Del</button>
+        <button class="key-btn" data-key="ArrowUp">↑</button>
+        <button class="key-btn" data-key="ArrowDown">↓</button>
+        <button class="key-btn" data-key="ArrowLeft">←</button>
+        <button class="key-btn" data-key="ArrowRight">→</button>
+        <button class="key-btn" data-key=" ">Space</button>
+      </div>
+      <button class="send-btn" id="btnSendText">Send</button>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ── State ───────────────────────────────────────────────
+let tabs = [];
+let selectedTabId = null;
+let screenshotWidth = 0;
+let screenshotHeight = 0;
+let isLoading = false;
+let refreshTimer = null;
+let connected = false;
+
+// ── DOM refs ────────────────────────────────────────────
+const tabList = document.getElementById('tabList');
+const urlInput = document.getElementById('urlInput');
+const screenshotImg = document.getElementById('screenshotImg');
+const viewportContainer = document.getElementById('viewportContainer');
+const placeholder = document.getElementById('placeholder');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const cursorTooltip = document.getElementById('cursorTooltip');
+const toolbarInfo = document.getElementById('toolbarInfo');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+const autoRefreshCheck = document.getElementById('autoRefresh');
+const refreshIntervalSelect = document.getElementById('refreshInterval');
+
+// ── API helpers ─────────────────────────────────────────
+async function api(endpoint, options = {}) {
+  const method = options.method || (options.body ? 'POST' : 'GET');
+  const res = await fetch('/api/' + endpoint, {
+    method,
+    headers: options.body ? { 'Content-Type': 'application/json' } : {},
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function showLoading(v) {
+  isLoading = v;
+  loadingOverlay.classList.toggle('visible', v);
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── Status polling ──────────────────────────────────────
+async function pollStatus() {
+  try {
+    const s = await api('status');
+    connected = s.connected;
+    connDot.className = 'status-dot' + (connected ? ' connected' : '');
+    connText.textContent = connected ? 'Connected' : 'Disconnected';
+    if (connected && tabs.length === 0) {
+      await refreshTabs();
+    }
+  } catch {
+    connected = false;
+    connDot.className = 'status-dot';
+    connText.textContent = 'Server error';
+  }
+}
+
+// ── Tab management ──────────────────────────────────────
+async function refreshTabs() {
+  try {
+    const result = await api('tabs');
+    tabs = result.tabs || [];
+    renderTabs();
+    // If no tab selected or selected tab is gone, pick the active one
+    if (!selectedTabId || !tabs.find(t => t.id === selectedTabId)) {
+      const active = tabs.find(t => t.active) || tabs[0];
+      if (active) selectTab(active.id);
+    }
+  } catch (e) {
+    toast('Failed to list tabs: ' + e.message, 'error');
+  }
+}
+
+function renderTabs() {
+  tabList.innerHTML = '';
+  for (const tab of tabs) {
+    const el = document.createElement('div');
+    el.className = 'tab-item' + (tab.id === selectedTabId ? ' active' : '');
+    el.title = tab.url;
+
+    const favicon = document.createElement('div');
+    favicon.className = 'tab-favicon';
+    try {
+      const u = new URL(tab.url);
+      const img = document.createElement('img');
+      img.src = `https://www.google.com/s2/favicons?sz=16&domain=${u.hostname}`;
+      img.width = 14;
+      img.height = 14;
+      img.style.borderRadius = '2px';
+      img.onerror = () => { favicon.textContent = '🌐'; img.remove(); };
+      favicon.textContent = '';
+      favicon.appendChild(img);
+    } catch {
+      favicon.textContent = '🌐';
+    }
+
+    const title = document.createElement('span');
+    title.className = 'tab-title';
+    title.textContent = tab.title || 'Untitled';
+
+    const close = document.createElement('button');
+    close.className = 'tab-close';
+    close.textContent = '×';
+    close.onclick = (e) => { e.stopPropagation(); closeTab(tab.id); };
+
+    el.appendChild(favicon);
+    el.appendChild(title);
+    el.appendChild(close);
+    el.onclick = () => selectTab(tab.id);
+    tabList.appendChild(el);
+  }
+}
+
+async function selectTab(tabId) {
+  selectedTabId = tabId;
+  renderTabs();
+  const tab = tabs.find(t => t.id === tabId);
+  if (tab) {
+    urlInput.value = tab.url;
+  }
+  await takeScreenshot();
+}
+
+async function closeTab(tabId) {
+  try {
+    await api('closeTab', { body: { tabId } });
+    toast('Tab closed', 'success');
+    await refreshTabs();
+  } catch (e) {
+    toast('Failed to close tab: ' + e.message, 'error');
+  }
+}
+
+// ── Navigation ──────────────────────────────────────────
+async function navigateTo(url) {
+  if (!url) return;
+  // Prepend https:// if no protocol
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+    urlInput.value = url;
+  }
+  showLoading(true);
+  toolbarInfo.textContent = 'Navigating to ' + url + '...';
+  try {
+    const result = await api('navigate', { body: { url, waitForLoad: true } });
+    selectedTabId = result.tabId;
+    toast('Navigated: ' + (result.title || url), 'success');
+    await refreshTabs();
+    await takeScreenshot();
+  } catch (e) {
+    toast('Navigate failed: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+    toolbarInfo.textContent = 'Ready';
+  }
+}
+
+async function reloadPage() {
+  if (!selectedTabId) return;
+  showLoading(true);
+  toolbarInfo.textContent = 'Reloading...';
+  try {
+    await api('evaluate', { body: { expression: 'location.reload()', tabId: selectedTabId } });
+    // Wait for page to reload
+    await new Promise(r => setTimeout(r, 1500));
+    await refreshTabs();
+    await takeScreenshot();
+  } catch (e) {
+    toast('Reload failed: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+    toolbarInfo.textContent = 'Ready';
+  }
+}
+
+async function goBack() {
+  if (!selectedTabId) return;
+  try {
+    await api('evaluate', { body: { expression: 'history.back()', tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 1000));
+    await refreshTabs();
+    await takeScreenshot();
+  } catch (e) {
+    toast('Back failed: ' + e.message, 'error');
+  }
+}
+
+async function goForward() {
+  if (!selectedTabId) return;
+  try {
+    await api('evaluate', { body: { expression: 'history.forward()', tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 1000));
+    await refreshTabs();
+    await takeScreenshot();
+  } catch (e) {
+    toast('Forward failed: ' + e.message, 'error');
+  }
+}
+
+// ── Screenshot ──────────────────────────────────────────
+async function takeScreenshot() {
+  if (!connected || !selectedTabId) return;
+  try {
+    const result = await api('screenshotVisible', {
+      body: { tabId: selectedTabId, format: 'jpeg', quality: 80 }
+    });
+    const fmt = result.format || 'jpeg';
+    screenshotImg.src = `data:image/${fmt};base64,${result.data}`;
+    // Wait for image to decode so naturalWidth/Height are available
+    await screenshotImg.decode().catch(() => {});
+    screenshotWidth = result.width || screenshotImg.naturalWidth || 0;
+    screenshotHeight = result.height || screenshotImg.naturalHeight || 0;
+    viewportContainer.style.display = 'inline-block';
+    placeholder.style.display = 'none';
+
+    // Update tab info
+    const tab = tabs.find(t => t.id === selectedTabId);
+    if (tab) {
+      urlInput.value = tab.url;
+    }
+    toolbarInfo.textContent = `${screenshotWidth}×${screenshotHeight} — Last capture: ${new Date().toLocaleTimeString()}`;
+  } catch (e) {
+    // Silent fail for auto-refresh, show for manual
+    if (!autoRefreshCheck.checked) {
+      toast('Screenshot failed: ' + e.message, 'error');
+    }
+  }
+}
+
+// ── Click simulation ────────────────────────────────────
+async function simulateClick(pageX, pageY) {
+  if (!selectedTabId) return;
+
+  toolbarInfo.textContent = `Clicking at (${Math.round(pageX)}, ${Math.round(pageY)})...`;
+  try {
+    const code = `
+      (function() {
+        const x = ${Math.round(pageX)};
+        const y = ${Math.round(pageY)};
+        const el = document.elementFromPoint(x, y);
+        if (!el) return { clicked: false, reason: 'no element at point' };
+
+        // Dispatch full mouse event sequence
+        const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 };
+        el.dispatchEvent(new MouseEvent('mouseover', opts));
+        el.dispatchEvent(new MouseEvent('mousedown', opts));
+        el.dispatchEvent(new MouseEvent('mouseup', opts));
+        el.dispatchEvent(new MouseEvent('click', opts));
+
+        // If it's a link, navigate
+        const link = el.closest('a[href]');
+        if (link && link.href && !link.href.startsWith('javascript:')) {
+          location.href = link.href;
+          return { clicked: true, tag: el.tagName, navigated: link.href };
+        }
+
+        return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100) };
+      })()
+    `;
+    const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+
+    if (result.result && result.result.navigated) {
+      toast('Navigating to: ' + result.result.navigated, 'success');
+    }
+
+    // Wait a bit for any page changes then refresh
+    await new Promise(r => setTimeout(r, 500));
+    await refreshTabs();
+    await takeScreenshot();
+    toolbarInfo.textContent = 'Ready';
+  } catch (e) {
+    toast('Click failed: ' + e.message, 'error');
+    toolbarInfo.textContent = 'Ready';
+  }
+}
+
+// ── Image click handler ─────────────────────────────────
+function getPageCoords(e) {
+  const rect = screenshotImg.getBoundingClientRect();
+  // Always use naturalWidth/Height as the ground truth for the actual image size
+  const natW = screenshotImg.naturalWidth || screenshotWidth || rect.width;
+  const natH = screenshotImg.naturalHeight || screenshotHeight || rect.height;
+  const scaleX = natW / rect.width;
+  const scaleY = natH / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  return { x, y, imgX: e.clientX - rect.left, imgY: e.clientY - rect.top };
+}
+
+screenshotImg.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const { x, y, imgX, imgY } = getPageCoords(e);
+
+  // Visual click indicator
+  const ring = document.createElement('div');
+  ring.className = 'click-ring';
+  ring.style.left = imgX + 'px';
+  ring.style.top = imgY + 'px';
+  viewportContainer.appendChild(ring);
+  setTimeout(() => ring.remove(), 600);
+
+  await simulateClick(x, y);
+});
+
+screenshotImg.addEventListener('mousemove', (e) => {
+  if (!screenshotWidth) return;
+  const { x, y } = getPageCoords(e);
+  cursorTooltip.style.display = 'block';
+  cursorTooltip.style.left = (e.clientX - document.getElementById('contentArea').getBoundingClientRect().left + 12) + 'px';
+  cursorTooltip.style.top = (e.clientY - document.getElementById('contentArea').getBoundingClientRect().top - 24) + 'px';
+  cursorTooltip.textContent = `${Math.round(x)}, ${Math.round(y)}`;
+});
+
+screenshotImg.addEventListener('mouseleave', () => {
+  cursorTooltip.style.display = 'none';
+});
+
+// ── Event bindings ──────────────────────────────────────
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    navigateTo(urlInput.value.trim());
+  }
+});
+
+document.getElementById('btnBack').addEventListener('click', goBack);
+document.getElementById('btnForward').addEventListener('click', goForward);
+document.getElementById('btnReload').addEventListener('click', reloadPage);
+document.getElementById('btnScreenshot').addEventListener('click', () => takeScreenshot());
+document.getElementById('btnRefreshTabs').addEventListener('click', () => refreshTabs());
+document.getElementById('btnNewTab').addEventListener('click', () => {
+  const url = prompt('Enter URL to open:', 'https://example.com');
+  if (url) navigateTo(url);
+});
+
+// ── Auto-refresh ────────────────────────────────────────
+function startAutoRefresh() {
+  stopAutoRefresh();
+  if (!autoRefreshCheck.checked) return;
+  const interval = parseInt(refreshIntervalSelect.value, 10);
+  refreshTimer = setInterval(() => {
+    if (connected && selectedTabId && !isLoading) {
+      takeScreenshot();
+    }
+  }, interval);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+}
+
+autoRefreshCheck.addEventListener('change', startAutoRefresh);
+refreshIntervalSelect.addEventListener('change', startAutoRefresh);
+
+// ── Keyboard input ──────────────────────────────────────
+let inputMode = 'type'; // 'type' or 'key'
+const textInput = document.getElementById('textInput');
+const keyButtons = document.getElementById('keyButtons');
+const btnSendText = document.getElementById('btnSendText');
+const modeType = document.getElementById('modeType');
+const modeKey = document.getElementById('modeKey');
+
+modeType.addEventListener('click', () => {
+  inputMode = 'type';
+  modeType.classList.add('active');
+  modeKey.classList.remove('active');
+  textInput.style.display = '';
+  textInput.placeholder = 'Type text to send to the focused element...';
+  keyButtons.style.display = 'none';
+  btnSendText.style.display = '';
+});
+
+modeKey.addEventListener('click', () => {
+  inputMode = 'key';
+  modeKey.classList.add('active');
+  modeType.classList.remove('active');
+  textInput.style.display = 'none';
+  keyButtons.style.display = 'flex';
+  btnSendText.style.display = 'none';
+});
+
+async function sendTextInput(text) {
+  if (!selectedTabId || !text) return;
+  toolbarInfo.textContent = 'Typing: "' + text.slice(0, 30) + (text.length > 30 ? '...' : '') + '"';
+  try {
+    const escaped = JSON.stringify(text);
+    const code = `
+      (function() {
+        const el = document.activeElement;
+        if (!el) return { typed: false, reason: 'no active element' };
+        const tag = el.tagName;
+        const isEditable = el.isContentEditable ||
+          tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+        if (isEditable && ('value' in el)) {
+          // For input/textarea: set value and dispatch events
+          const text = ${escaped};
+          const start = el.selectionStart || el.value.length;
+          const end = el.selectionEnd || el.value.length;
+          const before = el.value.slice(0, start);
+          const after = el.value.slice(end);
+          el.value = before + text + after;
+          el.selectionStart = el.selectionEnd = start + text.length;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          return { typed: true, tag, into: 'value', length: text.length };
+        } else if (el.isContentEditable) {
+          document.execCommand('insertText', false, ${escaped});
+          return { typed: true, tag, into: 'contentEditable', length: ${escaped}.length };
+        } else {
+          // Try to type into it anyway via key events
+          const text = ${escaped};
+          for (const ch of text) {
+            el.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+            el.dispatchEvent(new KeyboardEvent('keypress', { key: ch, bubbles: true }));
+            el.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+          }
+          return { typed: true, tag, into: 'keyEvents', length: text.length };
+        }
+      })()
+    `;
+    const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    if (result.result && result.result.typed) {
+      toast(`Typed ${result.result.length} chars into <${result.result.tag}>`, 'success');
+    } else {
+      toast('No active element to type into', 'error');
+    }
+    await new Promise(r => setTimeout(r, 300));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Type failed: ' + e.message, 'error');
+  }
+  toolbarInfo.textContent = 'Ready';
+}
+
+async function sendKey(key) {
+  if (!selectedTabId) return;
+  toolbarInfo.textContent = 'Sending key: ' + key;
+  try {
+    const escaped = JSON.stringify(key);
+    const code = `
+      (function() {
+        const el = document.activeElement || document.body;
+        const key = ${escaped};
+
+        const keyCode = {
+          'Enter': 13, 'Tab': 9, 'Escape': 27, 'Backspace': 8,
+          'Delete': 46, 'ArrowUp': 38, 'ArrowDown': 40,
+          'ArrowLeft': 37, 'ArrowRight': 39, ' ': 32
+        }[key] || 0;
+
+        const opts = { key, code: 'Key' + key, keyCode, which: keyCode, bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent('keydown', opts));
+
+        // Special handling for certain keys
+        if (key === 'Backspace' && ('value' in el)) {
+          const s = el.selectionStart;
+          const e = el.selectionEnd;
+          if (s === e && s > 0) {
+            el.value = el.value.slice(0, s - 1) + el.value.slice(s);
+            el.selectionStart = el.selectionEnd = s - 1;
+          } else if (s !== e) {
+            el.value = el.value.slice(0, s) + el.value.slice(e);
+            el.selectionStart = el.selectionEnd = s;
+          }
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (key === 'Delete' && ('value' in el)) {
+          const s = el.selectionStart;
+          const e = el.selectionEnd;
+          if (s === e && s < el.value.length) {
+            el.value = el.value.slice(0, s) + el.value.slice(s + 1);
+            el.selectionStart = el.selectionEnd = s;
+          } else if (s !== e) {
+            el.value = el.value.slice(0, s) + el.value.slice(e);
+            el.selectionStart = el.selectionEnd = s;
+          }
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (key === 'Enter') {
+          el.dispatchEvent(new KeyboardEvent('keypress', opts));
+          // Submit form if inside one
+          const form = el.closest('form');
+          if (form) {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+          }
+        } else if (key === ' ' && ('value' in el)) {
+          const s = el.selectionStart || el.value.length;
+          el.value = el.value.slice(0, s) + ' ' + el.value.slice(s);
+          el.selectionStart = el.selectionEnd = s + 1;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        el.dispatchEvent(new KeyboardEvent('keyup', opts));
+        return { sent: true, key, tag: el.tagName };
+      })()
+    `;
+    const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    if (result.result && result.result.sent) {
+      toast(`Sent [${key}] to <${result.result.tag}>`, 'success');
+    }
+    await new Promise(r => setTimeout(r, 300));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Key send failed: ' + e.message, 'error');
+  }
+  toolbarInfo.textContent = 'Ready';
+}
+
+btnSendText.addEventListener('click', () => {
+  sendTextInput(textInput.value);
+  textInput.value = '';
+});
+
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendTextInput(textInput.value);
+    textInput.value = '';
+  }
+});
+
+document.querySelectorAll('.key-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sendKey(btn.dataset.key);
+  });
+});
+
+// ── Init ────────────────────────────────────────────────
+pollStatus();
+setInterval(pollStatus, 3000);
+startAutoRefresh();
+</script>
+</body>
+</html>
