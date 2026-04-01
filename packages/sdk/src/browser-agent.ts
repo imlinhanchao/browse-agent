@@ -12,6 +12,7 @@ import type {
   ScreenshotResult,
   ListTabsResult,
   CloseTabCommand,
+  ActivateTabCommand,
   EvaluateCommand,
   EvaluateResult,
   Command,
@@ -149,6 +150,14 @@ export class BrowserAgent {
    */
   async closeTab(tabId: number): Promise<void> {
     const cmd: CloseTabCommand = { type: 'closeTab', tabId };
+    return this.server.sendCommand<void>(cmd, this.defaultTimeout);
+  }
+
+  /**
+   * Activate (switch to) a tab.
+   */
+  async activateTab(tabId: number): Promise<void> {
+    const cmd: ActivateTabCommand = { type: 'activateTab', tabId };
     return this.server.sendCommand<void>(cmd, this.defaultTimeout);
   }
 

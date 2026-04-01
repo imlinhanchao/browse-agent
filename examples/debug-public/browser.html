@@ -641,6 +641,11 @@ async function selectTab(tabId) {
   if (tab) {
     urlInput.value = tab.url;
   }
+  try {
+    await api('activateTab', { body: { tabId } });
+  } catch (e) {
+    toast('Failed to activate tab: ' + e.message, 'error');
+  }
   await takeScreenshot();
 }
 

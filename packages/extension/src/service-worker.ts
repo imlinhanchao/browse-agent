@@ -6,6 +6,7 @@ import {
   handleGetContent,
   handleListTabs,
   handleCloseTab,
+  handleActivateTab,
   handleInjectScript,
   handleInjectCSS,
   handleGetDOM,
@@ -30,6 +31,8 @@ async function executeCommand(command: Command): Promise<unknown> {
       return handleListTabs();
     case 'closeTab':
       return handleCloseTab(command);
+    case 'activateTab':
+      return handleActivateTab(command);
     case 'injectScript':
       return handleInjectScript(command);
     case 'injectCSS':

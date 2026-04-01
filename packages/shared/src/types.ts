@@ -82,6 +82,12 @@ export interface CloseTabCommand {
   tabId: number;
 }
 
+/** Activate (switch to) a tab */
+export interface ActivateTabCommand {
+  type: 'activateTab';
+  tabId: number;
+}
+
 /** Evaluate JS and return result */
 export interface EvaluateCommand {
   type: 'evaluate';
@@ -99,6 +105,7 @@ export type Command =
   | ScreenshotCommand
   | ListTabsCommand
   | CloseTabCommand
+  | ActivateTabCommand
   | EvaluateCommand;
 
 // ============================================================
