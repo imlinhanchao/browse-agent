@@ -762,6 +762,7 @@ async function simulateClick(pageX, pageY) {
         const x = ${Math.round(pageX)} / dpr;
         const y = ${Math.round(pageY)} / dpr;
         const el = document.elementFromPoint(x, y);
+        console.log(el);
         if (!el) return { clicked: false, reason: 'no element at point' };
 
         // Dispatch full mouse event sequence
@@ -769,7 +770,6 @@ async function simulateClick(pageX, pageY) {
         el.dispatchEvent(new MouseEvent('mouseover', opts));
         el.dispatchEvent(new MouseEvent('mousedown', opts));
         el.dispatchEvent(new MouseEvent('mouseup', opts));
-        el.dispatchEvent(new MouseEvent('click', opts));
 
         // Focus the element for subsequent keyboard input
         if (typeof el.focus === 'function') {
@@ -777,15 +777,15 @@ async function simulateClick(pageX, pageY) {
         }
 
         // If it's a link, navigate
-        const link = el.closest('a[href]');
-        if (link && link.href && !link.href.startsWith('javascript:')) {
+        const link = el.closest('a[href],button,input[type=button],input[type=submit],input[type=reset]');
+        if (link) {
           link.click();
           return { clicked: true, tag: el.tagName, navigated: link.href };
         }
 
         return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100) };
       })()
-    `;
+    `.trim();
     const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
 
     if (result.result && result.result.navigated) {
@@ -949,7 +949,7 @@ async function sendTextInput(text) {
           return { typed: true, tag, into: 'keyEvents', length: text.length };
         }
       })()
-    `;
+    `.trim();
     const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
     if (result.result && result.result.typed) {
       toast(`Typed ${result.result.length} chars into <${result.result.tag}>`, 'success');

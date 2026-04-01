@@ -193,7 +193,7 @@ export class BrowserAgent {
    * Evaluate a JavaScript expression in a page and return the result.
    */
   async evaluate(expression: string, tabId?: number): Promise<EvaluateResult> {
-    const cmd: EvaluateCommand = { type: 'evaluate', expression, tabId };
+    const cmd: EvaluateCommand = { type: 'evaluate', expression: expression.trim(), tabId };
     return this.server.sendCommand<EvaluateResult>(cmd, this.defaultTimeout);
   }
 
