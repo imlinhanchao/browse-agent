@@ -465,6 +465,12 @@
         <option value="3000">3s</option>
         <option value="5000">5s</option>
       </select>
+      <span style="color:var(--border)">│</span>
+      <button class="nav-btn" id="btnScrollUp" title="Scroll up" style="font-size:13px">⬆</button>
+      <button class="nav-btn" id="btnScrollDown" title="Scroll down" style="font-size:13px">⬇</button>
+      <button class="nav-btn" id="btnScrollTop" title="Scroll to top" style="font-size:13px">⤒</button>
+      <button class="nav-btn" id="btnScrollBottom" title="Scroll to bottom" style="font-size:13px">⤓</button>
+      <span style="color:var(--border)">│</span>
       <button class="nav-btn" id="btnScreenshot" title="Take screenshot now" style="font-size:13px">📷</button>
     </div>
 
@@ -849,6 +855,18 @@ screenshotImg.addEventListener('mouseleave', () => {
   cursorTooltip.style.display = 'none';
 });
 
+// ── Scroll via mouse wheel on screenshot ────────────────
+let scrollThrottled = false;
+viewportContainer.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (scrollThrottled || !selectedTabId) return;
+  scrollThrottled = true;
+  const delta = Math.round(e.deltaY);
+  scrollPage(delta).finally(() => {
+    scrollThrottled = false;
+  });
+}, { passive: false });
+
 // ── Event bindings ──────────────────────────────────────
 urlInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -860,6 +878,10 @@ document.getElementById('btnBack').addEventListener('click', goBack);
 document.getElementById('btnForward').addEventListener('click', goForward);
 document.getElementById('btnReload').addEventListener('click', reloadPage);
 document.getElementById('btnScreenshot').addEventListener('click', () => takeScreenshot());
+document.getElementById('btnScrollUp').addEventListener('click', () => scrollPage(-300));
+document.getElementById('btnScrollDown').addEventListener('click', () => scrollPage(300));
+document.getElementById('btnScrollTop').addEventListener('click', () => scrollToEdge('top'));
+document.getElementById('btnScrollBottom').addEventListener('click', () => scrollToEdge('bottom'));
 document.getElementById('btnRefreshTabs').addEventListener('click', () => refreshTabs());
 document.getElementById('btnNewTab').addEventListener('click', () => {
   const url = prompt('Enter URL to open:', 'https://example.com');
@@ -1059,6 +1081,32 @@ document.querySelectorAll('.key-btn').forEach(btn => {
     sendKey(btn.dataset.key);
   });
 });
+
+// ── Scroll ──────────────────────────────────────────────
+async function scrollPage(deltaY) {
+  if (!selectedTabId) return;
+  try {
+    const code = `(window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 350));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Scroll failed: ' + e.message, 'error');
+  }
+}
+
+async function scrollToEdge(edge) {
+  if (!selectedTabId) return;
+  try {
+    const y = edge === 'top' ? '0' : 'document.documentElement.scrollHeight';
+    const code = `(window.scrollTo({ top: ${y}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 500));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Scroll failed: ' + e.message, 'error');
+  }
+}
 
 // ── Init ────────────────────────────────────────────────
 pollStatus();

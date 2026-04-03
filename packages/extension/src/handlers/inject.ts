@@ -10,24 +10,43 @@ import type {
 import { resolveTabId } from './navigate';
 
 /**
+ * Execute JS via Chrome DevTools Protocol Runtime.evaluate.
+ * This bypasses all CSP restrictions.
+ */
+async function cdpEvaluate(tabId: number, expression: string): Promise<unknown> {
+  await chrome.debugger.attach({ tabId }, '1.3');
+  try {
+    const result = await chrome.debugger.sendCommand(
+      { tabId },
+      'Runtime.evaluate',
+      {
+        expression,
+        returnByValue: true,
+        awaitPromise: true,
+        userGesture: true,
+      }
+    ) as { result: { value?: unknown; type: string; description?: string }; exceptionDetails?: { text: string; exception?: { description?: string } } };
+
+    if (result.exceptionDetails) {
+      const msg = result.exceptionDetails.exception?.description || result.exceptionDetails.text;
+      throw new Error(msg);
+    }
+
+    return result.result?.value ?? null;
+  } finally {
+    await chrome.debugger.detach({ tabId }).catch(() => {});
+  }
+}
+
+/**
  * Inject JavaScript into a page.
  */
 export async function handleInjectScript(cmd: InjectScriptCommand): Promise<InjectResult> {
   const tabId = await resolveTabId(cmd.tabId);
 
   if (cmd.code) {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: (code: string) => {
-        const script = document.createElement('script');
-        script.textContent = code;
-        document.documentElement.appendChild(script);
-        script.remove();
-      },
-      args: [cmd.code],
-      world: 'MAIN',
-    });
-    return { result: results[0]?.result ?? null };
+    const result = await cdpEvaluate(tabId, cmd.code);
+    return { result };
   }
 
   if (cmd.file) {
@@ -95,22 +114,6 @@ export async function handleGetDOM(cmd: GetDOMCommand): Promise<DOMResult> {
  */
 export async function handleEvaluate(cmd: EvaluateCommand): Promise<EvaluateResult> {
   const tabId = await resolveTabId(cmd.tabId);
-
-  const results = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: (expr: string) => {
-      const script = document.createElement('script');
-      const resultKey = '__browseAgentEvalResult_' + Date.now();
-      script.textContent = `window["${resultKey}"] = (function(){ try { return ${expr}; } catch(e) { return { __error: e.message }; } })();`;
-      document.documentElement.appendChild(script);
-      script.remove();
-      const result = (window as any)[resultKey];
-      delete (window as any)[resultKey];
-      return result;
-    },
-    args: [cmd.expression],
-    world: 'MAIN',
-  });
-
-  return { result: results[0]?.result ?? null };
+  const result = await cdpEvaluate(tabId, cmd.expression);
+  return { result };
 }
