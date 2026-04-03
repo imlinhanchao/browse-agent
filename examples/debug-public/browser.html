@@ -526,6 +526,8 @@ let screenshotHeight = 0;
 let isLoading = false;
 let refreshTimer = null;
 let connected = false;
+// 缓存最近一次点击的滚动容器的唯一标识
+let lastScrollTargetSelector = null;
 
 // ── DOM refs ────────────────────────────────────────────
 const tabList = document.getElementById('tabList');
@@ -767,14 +769,44 @@ async function simulateClick(pageX, pageY) {
 
   toolbarInfo.textContent = `Clicking at (${Math.round(pageX)}, ${Math.round(pageY)})...`;
   try {
+    // 注入代码：点击并返回最近的可滚动容器的唯一选择器
     const code = `
       (function() {
+        function getScrollableAncestor(el) {
+          while (el && el !== document.body && el !== document.documentElement) {
+            const style = window.getComputedStyle(el);
+            const overflowY = style.overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+              return el;
+            }
+            el = el.parentElement;
+          }
+          return null;
+        }
+        function getDomPath(el) {
+          if (!el) return null;
+          if (el.id) return '#'+el.id;
+          let path = [];
+          while (el && el.nodeType === 1 && el !== document.body) {
+            let name = el.nodeName.toLowerCase();
+            if (el.className) name += '.' + Array.from(el.classList).join('.');
+            let sib = el, idx = 1;
+            while ((sib = sib.previousElementSibling)) if (sib.nodeName === el.nodeName) idx++;
+            name += ':nth-of-type(' + idx + ')';
+            path.unshift(name);
+            el = el.parentElement;
+          }
+          return path.length ? path.join('>') : null;
+        }
         const dpr = window.devicePixelRatio || 1;
         const x = ${Math.round(pageX)} / dpr;
         const y = ${Math.round(pageY)} / dpr;
         const el = document.elementFromPoint(x, y);
-        console.log(el);
         if (!el) return { clicked: false, reason: 'no element at point' };
+
+        // 找到最近的可滚动容器
+        const scrollable = getScrollableAncestor(el);
+        const scrollSelector = getDomPath(scrollable);
 
         // Dispatch full mouse event sequence
         const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 };
@@ -791,13 +823,20 @@ async function simulateClick(pageX, pageY) {
         const link = el.closest('a[href],button,input[type=button],input[type=submit],input[type=reset]');
         if (link) {
           link.click();
-          return { clicked: true, tag: el.tagName, navigated: link.href };
+          return { clicked: true, tag: el.tagName, navigated: link.href, scrollSelector };
         }
 
-        return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100) };
+        return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100), scrollSelector };
       })()
     `.trim();
     const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+
+    // 缓存最近的滚动容器选择器
+    if (result.result && result.result.scrollSelector) {
+      lastScrollTargetSelector = result.result.scrollSelector;
+    } else {
+      lastScrollTargetSelector = null;
+    }
 
     if (result.result && result.result.navigated) {
       toast('Navigating to: ' + result.result.navigated, 'success');
@@ -1086,7 +1125,29 @@ document.querySelectorAll('.key-btn').forEach(btn => {
 async function scrollPage(deltaY) {
   if (!selectedTabId) return;
   try {
-    const code = `(window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    // 优先在最近的滚动容器上滚动，否则回退到 window
+    let code;
+    if (lastScrollTargetSelector) {
+      code = `
+        (function() {
+          function getByPath(sel) {
+            if (!sel) return null;
+            if (sel.startsWith('#')) return document.getElementById(sel.slice(1));
+            try { return document.querySelector(sel); } catch { return null; }
+          }
+          const el = getByPath(${JSON.stringify(lastScrollTargetSelector)});
+          if (el) {
+            el.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' });
+            return { scrolled: true, target: 'element' };
+          } else {
+            window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' });
+            return { scrolled: true, target: 'window' };
+          }
+        })()
+      `;
+    } else {
+      code = `(window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    }
     await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
     await new Promise(r => setTimeout(r, 350));
     await takeScreenshot();
@@ -1098,8 +1159,29 @@ async function scrollPage(deltaY) {
 async function scrollToEdge(edge) {
   if (!selectedTabId) return;
   try {
-    const y = edge === 'top' ? '0' : 'document.documentElement.scrollHeight';
-    const code = `(window.scrollTo({ top: ${y}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    let code;
+    if (lastScrollTargetSelector) {
+      code = `
+        (function() {
+          function getByPath(sel) {
+            if (!sel) return null;
+            if (sel.startsWith('#')) return document.getElementById(sel.slice(1));
+            try { return document.querySelector(sel); } catch { return null; }
+          }
+          const el = getByPath(${JSON.stringify(lastScrollTargetSelector)});
+          if (el) {
+            el.scrollTo({ top: ${edge === 'top' ? 0 : 'el.scrollHeight'}, behavior: 'smooth' });
+            return { scrolled: true, target: 'element' };
+          } else {
+            window.scrollTo({ top: ${edge === 'top' ? 0 : 'document.documentElement.scrollHeight'}, behavior: 'smooth' });
+            return { scrolled: true, target: 'window' };
+          }
+        })()
+      `;
+    } else {
+      const y = edge === 'top' ? '0' : 'document.documentElement.scrollHeight';
+      code = `(window.scrollTo({ top: ${y}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    }
     await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
     await new Promise(r => setTimeout(r, 500));
     await takeScreenshot();
