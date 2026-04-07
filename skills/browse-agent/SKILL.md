@@ -105,6 +105,61 @@ Use `2>/dev/null` to suppress logs when only data is needed. Omit it when debugg
 
 Read stdout JSON. Delete the temporary script file when done.
 
+## Modular Scripts
+
+All functionality is also available as individual modules for fine-grained control. Import from `./skills/browse-agent/scripts/`.
+
+### Lifecycle Scripts
+
+| Script | Export | Description |
+|--------|--------|-------------|
+| [launch-browser.mjs](./scripts/launch-browser.mjs) | `launchBrowser(options?)` | Start browser with extension. Returns session object |
+| [connect.mjs](./scripts/connect.mjs) | `connect(options?)` | Connect to a running browser session. Returns agent |
+| [close-browser.mjs](./scripts/close-browser.mjs) | `closeBrowser(agent?)` | Kill browser, stop agent, clean up temp files |
+
+### Feature Scripts
+
+| Script | Export | Description |
+|--------|--------|-------------|
+| [navigate.mjs](./scripts/navigate.mjs) | `navigate(agent, url, opts?)` | Open URL → `{ tabId, url, title }` |
+| [get-content.mjs](./scripts/get-content.mjs) | `getContent(agent, opts?)` | Get page HTML/text → `{ content, url, title }` |
+| [get-dom.mjs](./scripts/get-dom.mjs) | `getDOM(agent, selector, opts?)` | Query DOM elements → `{ result }` |
+| [evaluate.mjs](./scripts/evaluate.mjs) | `evaluate(agent, expression, opts?)` | Run JS expression → `{ result }` |
+| [inject-script.mjs](./scripts/inject-script.mjs) | `injectScript(agent, code, opts?)` | Execute JS code → `{ success }` |
+| [inject-css.mjs](./scripts/inject-css.mjs) | `injectCSS(agent, code, opts?)` | Inject CSS → `{ success }` |
+| [screenshot.mjs](./scripts/screenshot.mjs) | `screenshot(agent, mode, opts?)` | Capture screenshot → `{ data, format, width, height }` |
+| [tabs.mjs](./scripts/tabs.mjs) | `listTabs(agent)` / `closeTab(agent, id)` / `activateTab(agent, id)` | Tab management |
+
+### Step-by-Step Example (Modular)
+
+```javascript
+import { launchBrowser } from './skills/browse-agent/scripts/launch-browser.mjs';
+import { navigate } from './skills/browse-agent/scripts/navigate.mjs';
+import { getContent } from './skills/browse-agent/scripts/get-content.mjs';
+import { closeBrowser } from './skills/browse-agent/scripts/close-browser.mjs';
+
+// 1. Launch
+const session = await launchBrowser({ browser: 'chrome' });
+const agent = session._agent;
+await agent.waitForConnection(30000);
+
+try {
+  // 2. Browse
+  await navigate(agent, 'https://example.com');
+  const page = await getContent(agent, { format: 'text' });
+  console.log(JSON.stringify(page, null, 2));
+} finally {
+  // 3. Clean up
+  await closeBrowser(agent);
+}
+```
+
+All modules are also re-exported from [browse.mjs](./scripts/browse.mjs) for convenience:
+
+```javascript
+import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from './skills/browse-agent/scripts/browse.mjs';
+```
+
 ## API Reference
 
 | Method | Description | Result (`response.data`) |
