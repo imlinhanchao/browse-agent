@@ -1,3 +1,5 @@
+English / [简体中文](README.zh-CN.md)
+
 # Browse Agent
 
 A browser automation toolkit consisting of a **Chrome extension** and an **npm SDK** that communicate via authenticated WebSocket.
@@ -6,16 +8,16 @@ A browser automation toolkit consisting of a **Chrome extension** and an **npm S
 
 ```
 ┌──────────────────┐     WebSocket (HMAC Auth)     ┌──────────────────┐
-│   Your Node.js   │◄────────────────────────────►│  Chrome Extension │
-│   Application    │    Commands & Responses        │  (Service Worker) │
-│  (browse-agent-  │                                │                  │
-│       sdk)       │                                │  ┌──────────────┤
-│                  │                                │  │ Content Script│
-└──────────────────┘                                └──┴──────────────┘
+│   Your Node.js   │◄─────────────────────────────►│ Chrome Extension │
+│   Application    │    Commands & Responses       │ (Service Worker) │
+│  (browse-agent-  │                               │                  │
+│       sdk)       │                               │  ┌───────────────┤
+│                  │                               │  │ Content Script│
+└──────────────────┘                               └──┴───────────────┘
                                                           │
                                                     ┌─────▼─────┐
-                                                    │  Browser   │
-                                                    │   Tabs     │
+                                                    │  Browser  │
+                                                    │   Tabs    │
                                                     └───────────┘
 ```
 
@@ -48,6 +50,8 @@ Only `127.0.0.1` connections are accepted by the WebSocket server.
 
 ```
 browse-agent/
+├── .github/workflows/
+│   └── release-extension-draft.yml  # Manual action: build + draft release
 ├── packages/
 │   ├── shared/          # Shared types, protocol, HMAC utilities
 │   ├── extension/       # Chrome MV3 extension
@@ -61,28 +65,28 @@ browse-agent/
 
 ## Quick Start
 
-### 1. Build
+### Build
 
 ```bash
 npm install
 npm run build
 ```
 
-### 2. Load the Chrome Extension
+### Load the Chrome Extension
 
 1. Open Chrome → `chrome://extensions/`
 2. Enable "Developer mode" (top right)
 3. Click "Load unpacked"
 4. Select the `packages/extension/build/` directory
 
-### 3. Configure the Extension
+### Configure the Extension
 
 1. Click the Browse Agent extension icon in Chrome toolbar
 2. Set **WebSocket URL**: `ws://127.0.0.1:9315` (default)
 3. Set **Shared Secret**: choose a strong secret
 4. Click **Save**
 
-### 4. Use the SDK
+### Use the SDK
 
 ```typescript
 import { BrowserAgent } from 'browse-agent-sdk';
@@ -122,7 +126,7 @@ console.log(headings.elements); // ["Example Domain"]
 await agent.stop();
 ```
 
-### 5. Run the Example
+### Run the Example
 
 ```bash
 node examples/basic-usage.mjs
@@ -169,10 +173,14 @@ npm run dev:extension
 # Build everything
 npm run build
 
-# Clean all build artifacts
+# Build one package
+npm run build:shared
+npm run build:sdk
+npm run build:extension
+
+# Clean dist folders under packages/*
 npm run clean
+
+# Clean extension build output
+npm run clean -w packages/extension
 ```
-
-## License
-
-MIT
