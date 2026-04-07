@@ -1,0 +1,59 @@
+name: Release Extension Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag (example: v1.0.0)
+        required: true
+        type: string
+      release_name:
+        description: Release title (optional, defaults to tag)
+        required: false
+        type: string
+      prerelease:
+        description: Mark as pre-release
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-draft-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build:shared
+
+      - name: Build extension package
+        run: npm run build:extension
+
+      - name: Prepare extension archive
+        run: |
+          cd packages/extension/build
+          zip -r ../../../browse-agent-extension.zip .
+
+      - name: Create draft release and upload archive
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.release_name != '' && github.event.inputs.release_name || github.event.inputs.tag_name }}
+          draft: true
+          prerelease: ${{ github.event.inputs.prerelease }}
+          generate_release_notes: true
+          files: browse-agent-extension.zip
