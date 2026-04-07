@@ -7,7 +7,7 @@ import type {
   CloseTabCommand,
   ActivateTabCommand,
   TabInfo,
-} from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
 
 /**
  * Get the active tab ID, or use the provided tabId.

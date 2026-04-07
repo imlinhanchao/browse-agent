@@ -6,7 +6,7 @@ import type {
   InjectResult,
   DOMResult,
   EvaluateResult,
-} from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
 import { resolveTabId } from './navigate';
 
 /**

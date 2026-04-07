@@ -22,5 +22,5 @@ export type {
   CommandResponse,
   SuccessResponse,
   ErrorResponse,
-} from '@anthropic/browse-agent-shared';
-export { DEFAULT_PORT } from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
+export { DEFAULT_PORT } from 'browse-agent-shared';

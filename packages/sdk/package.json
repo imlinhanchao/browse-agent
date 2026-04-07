@@ -16,7 +16,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@anthropic/browse-agent-shared": "*",
+    "browse-agent-shared": "*",
     "ws": "^8.16.0"
   },
   "devDependencies": {

@@ -16,8 +16,8 @@ import type {
   EvaluateCommand,
   EvaluateResult,
   Command,
-} from '@anthropic/browse-agent-shared';
-import { DEFAULT_PORT } from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
+import { DEFAULT_PORT } from 'browse-agent-shared';
 import { WSServer, type WSServerOptions } from './ws-server.js';
 
 export interface BrowserAgentOptions {

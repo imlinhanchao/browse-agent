@@ -1,5 +1,5 @@
-import type { Command, CommandResponse } from '@anthropic/browse-agent-shared';
-import { DEFAULT_PORT } from '@anthropic/browse-agent-shared';
+import type { Command, CommandResponse } from 'browse-agent-shared';
+import { DEFAULT_PORT } from 'browse-agent-shared';
 import { WSClient } from './ws-client';
 import {
   handleNavigate,

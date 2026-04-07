@@ -1,4 +1,4 @@
-import type { ScreenshotCommand, ScreenshotResult } from '@anthropic/browse-agent-shared';
+import type { ScreenshotCommand, ScreenshotResult } from 'browse-agent-shared';
 import { resolveTabId } from './navigate';
 
 /**
