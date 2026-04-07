@@ -1,6 +1,6 @@
 {
   "name": "browse-agent-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "SDK for controlling Chrome browser via Browse Agent extension",
   "main": "./dist/index.js",
@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist/**/*",
+    "dist/*.d.ts",
+    "dist/*.js",
     "README.md"
   ],
   "scripts": {

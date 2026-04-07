@@ -39,11 +39,6 @@ saveBtn.addEventListener('click', () => {
   const wsUrl = wsUrlInput.value.trim();
   const secret = secretInput.value;
 
-  if (!secret) {
-    showMessage('Secret is required', 'error');
-    return;
-  }
-
   chrome.storage.local.set({ wsUrl, secret }, () => {
     showMessage('Settings saved', 'success');
   });

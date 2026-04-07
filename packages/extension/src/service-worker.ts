@@ -65,12 +65,7 @@ async function initConnection(reason: string = 'unknown') {
   initInFlight = (async () => {
   const stored = await chrome.storage.local.get(['wsUrl', 'secret']);
   const wsUrl = stored.wsUrl || `ws://127.0.0.1:${DEFAULT_PORT}`;
-  const secret = stored.secret || 'my-secure-secret-change-me';
-
-  if (!secret) {
-    console.warn('[BrowseAgent] No secret configured. Open extension popup to set connection settings.');
-    return;
-  }
+  const secret = stored.secret || '';
 
   const client = new WSClient(wsUrl, secret);
   wsClient = client;

@@ -2,7 +2,7 @@
 
 Node.js SDK for controlling Chrome through the Browse Agent companion extension.
 
-`browse-agent-sdk` runs a local WebSocket server in your Node.js app. The extension connects to it, authenticates with a shared secret, and executes browser commands.
+`browse-agent-sdk` runs a local WebSocket server in your Node.js app. The extension connects to it, authenticates (with or without a shared secret), and executes browser commands.
 
 ## Installation
 
@@ -17,7 +17,7 @@ This SDK requires the **Browse Agent Chrome extension**.
 1. Install/load the Browse Agent extension in Chrome.
 2. Open the extension popup and configure:
 - WebSocket URL: `ws://127.0.0.1:9315`
-- Shared Secret: the same value used in your SDK code
+- Shared Secret: optional. If set, it must match your SDK code.
 
 Without the extension connection, SDK commands will not execute.
 
@@ -61,7 +61,7 @@ console.log('base64 length:', screenshot.data.length);
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `secret` | `string` | required | Shared HMAC secret used by SDK and extension |
+| `secret` | `string` | `''` | Optional shared HMAC secret used by SDK and extension |
 | `port` | `number` | `9315` | WebSocket server port |
 | `host` | `string` | `127.0.0.1` | WebSocket server host |
 | `timeout` | `number` | `30000` | Default command timeout (ms) |
@@ -106,7 +106,8 @@ console.log('base64 length:', screenshot.data.length);
 
 - `waitForConnection()` timeout:
 - Confirm extension is installed and enabled.
-- Confirm WebSocket URL and shared secret match your SDK config.
+- Confirm WebSocket URL matches your SDK config.
+- If using a shared secret, confirm extension and SDK values match.
 - Confirm your app is running and has called `await agent.start()`.
 - Commands fail after connection:
 - Confirm the target tab still exists.
@@ -115,5 +116,5 @@ console.log('base64 length:', screenshot.data.length);
 ## Security Notes
 
 - The default host is localhost (`127.0.0.1`).
-- SDK and extension authenticate using an HMAC shared secret.
-- Use a strong secret and avoid committing it to source control.
+- SDK and extension can authenticate without a secret, or with HMAC shared-secret mode.
+- If using shared-secret mode, use a strong secret and avoid committing it to source control.

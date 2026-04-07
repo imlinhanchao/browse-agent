@@ -17,7 +17,7 @@ import {
 export interface WSServerOptions {
   port?: number;
   host?: string;
-  secret: string;
+  secret?: string;
 }
 
 type ResponseResolver = {
@@ -31,6 +31,7 @@ export class WSServer {
   private client: WebSocket | null = null;
   private authenticated = false;
   private secret: string;
+  private useSharedSecret: boolean;
   private port: number;
   private host: string;
   private pendingResponses = new Map<string, ResponseResolver>();
@@ -44,7 +45,8 @@ export class WSServer {
   }
 
   constructor(options: WSServerOptions) {
-    this.secret = options.secret;
+    this.secret = options.secret ?? '';
+    this.useSharedSecret = this.secret.length > 0;
     this.port = options.port ?? DEFAULT_PORT;
     this.host = options.host ?? '127.0.0.1';
   }
@@ -150,18 +152,22 @@ export class WSServer {
 
     // Handle auth response from extension
     if (payload.type === 'authResponse' && this.challenge) {
-      console.log('[BrowseAgent SDK] Received auth response, verifying HMAC...');
-      const expectedHmac = await computeHMAC(this.secret, this.challenge);
-      if (payload.hmac !== expectedHmac) {
-        console.error('[BrowseAgent SDK] Authentication failed - invalid HMAC');
-        await this.sendRaw(ws, { type: 'authAck', hmac: '', success: false });
-        ws.close(1008, 'Authentication failed');
-        this.client = null;
-        return;
+      let serverHmac = '';
+      if (this.useSharedSecret) {
+        console.log('[BrowseAgent SDK] Received auth response, verifying HMAC...');
+        const expectedHmac = await computeHMAC(this.secret, this.challenge);
+        if (payload.hmac !== expectedHmac) {
+          console.error('[BrowseAgent SDK] Authentication failed - invalid HMAC');
+          await this.sendRaw(ws, { type: 'authAck', hmac: '', success: false });
+          ws.close(1008, 'Authentication failed');
+          this.client = null;
+          return;
+        }
+
+        // Mutual auth: sign the client's challenge back
+        serverHmac = await computeHMAC(this.secret, payload.clientChallenge);
       }
 
-      // Mutual auth: sign the client's challenge back
-      const serverHmac = await computeHMAC(this.secret, payload.clientChallenge);
       this.authenticated = true;
       this.challenge = null;
 
@@ -182,7 +188,7 @@ export class WSServer {
       return;
     }
 
-    const valid = await verifyMessage(this.secret, message);
+    const valid = this.useSharedSecret ? await verifyMessage(this.secret, message) : true;
     if (!valid) {
       console.error('[BrowseAgent SDK] Invalid message signature');
       return;
@@ -254,7 +260,7 @@ export class WSServer {
     if (!this.client) throw new Error('No client connected');
 
     const timestamp = Date.now();
-    const signature = await signMessage(this.secret, id, timestamp, payload);
+    const signature = this.useSharedSecret ? await signMessage(this.secret, id, timestamp, payload) : '';
     const message: WSMessage = { id, timestamp, signature, payload };
     console.log(`[BrowseAgent SDK] -> signed message id=${this.formatId(id)} type=${payload.type}`);
     this.client.send(JSON.stringify(message));
@@ -263,7 +269,7 @@ export class WSServer {
   private async sendRaw(ws: WebSocket, payload: WSPayload): Promise<void> {
     const id = generateId();
     const timestamp = Date.now();
-    const signature = await signMessage(this.secret, id, timestamp, payload);
+    const signature = this.useSharedSecret ? await signMessage(this.secret, id, timestamp, payload) : '';
     const message: WSMessage = { id, timestamp, signature, payload };
     console.log(`[BrowseAgent SDK] -> raw message id=${this.formatId(id)} type=${payload.type}`);
     ws.send(JSON.stringify(message));

@@ -17,6 +17,7 @@ export class WSClient {
   private ws: WebSocket | null = null;
   private serverUrl: string;
   private secret: string;
+  private useSharedSecret: boolean;
   private authenticated = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
@@ -27,6 +28,7 @@ export class WSClient {
   constructor(serverUrl: string, secret: string) {
     this.serverUrl = serverUrl;
     this.secret = secret;
+    this.useSharedSecret = this.secret.length > 0;
   }
 
   setCommandHandler(handler: MessageHandler) {
@@ -83,13 +85,13 @@ export class WSClient {
     // Handle auth challenge from server
     if (payload.type === 'auth') {
       this.pendingChallenge = payload.challenge;
-      const hmac = await computeHMAC(this.secret, payload.challenge);
-      this.clientChallenge = generateNonce(32);
+      const hmac = this.useSharedSecret ? await computeHMAC(this.secret, payload.challenge) : '';
+      this.clientChallenge = this.useSharedSecret ? generateNonce(32) : '';
 
       await this.send({
         type: 'authResponse',
         hmac,
-        clientChallenge: this.clientChallenge,
+        clientChallenge: this.clientChallenge || '',
       });
       return;
     }
@@ -97,7 +99,10 @@ export class WSClient {
     // Handle auth acknowledgement
     if (payload.type === 'authAck' as string) {
       const ack = payload as { type: 'authAck'; hmac: string; success: boolean };
-      if (ack.success && this.clientChallenge) {
+      if (ack.success && !this.useSharedSecret) {
+        this.authenticated = true;
+        console.log('[BrowseAgent] Authenticated successfully (no shared secret)');
+      } else if (ack.success && this.clientChallenge) {
         const valid = await verifyHMAC(this.secret, this.clientChallenge, ack.hmac);
         if (valid) {
           this.authenticated = true;
@@ -119,7 +124,7 @@ export class WSClient {
       return;
     }
 
-    const validSig = await verifyMessage(this.secret, message);
+    const validSig = this.useSharedSecret ? await verifyMessage(this.secret, message) : true;
     if (!validSig) {
       console.error('[BrowseAgent] Invalid message signature');
       return;
@@ -139,7 +144,7 @@ export class WSClient {
 
     const id = generateId();
     const timestamp = Date.now();
-    const signature = await signMessage(this.secret, id, timestamp, payload);
+    const signature = this.useSharedSecret ? await signMessage(this.secret, id, timestamp, payload) : '';
 
     const message: WSMessage = { id, timestamp, signature, payload };
     this.ws.send(JSON.stringify(message));
@@ -151,7 +156,7 @@ export class WSClient {
     }
 
     const timestamp = Date.now();
-    const signature = await signMessage(this.secret, requestId, timestamp, payload);
+    const signature = this.useSharedSecret ? await signMessage(this.secret, requestId, timestamp, payload) : '';
 
     const message: WSMessage = { id: requestId, timestamp, signature, payload };
     this.ws.send(JSON.stringify(message));

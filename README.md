@@ -36,13 +36,20 @@ A browser automation toolkit consisting of a **Chrome extension** and an **npm S
 
 ## Security
 
-Communication between the SDK and extension uses **HMAC-SHA256 mutual authentication**:
+Communication between the SDK and extension supports two modes:
+
+- Shared-secret mode: **HMAC-SHA256 mutual authentication**
+- No-secret mode: handshake without HMAC signatures
+
+Shared-secret mode flow:
 
 1. Server sends a random challenge to the extension
 2. Extension signs the challenge with the shared secret and sends back its own challenge
 3. Server verifies the HMAC, signs the extension's challenge, and sends acknowledgement
 4. Extension verifies the server's HMAC — mutual authentication complete
 5. All subsequent messages include HMAC signatures and timestamps (replay protection)
+
+When secret is empty on both sides, authentication still completes, but HMAC checks are skipped.
 
 Only `127.0.0.1` connections are accepted by the WebSocket server.
 
@@ -83,7 +90,7 @@ npm run build
 
 1. Click the Browse Agent extension icon in Chrome toolbar
 2. Set **WebSocket URL**: `ws://127.0.0.1:9315` (default)
-3. Set **Shared Secret**: choose a strong secret
+3. Set **Shared Secret**: optional (leave empty to use no-secret handshake)
 4. Click **Save**
 
 ### Use the SDK
@@ -92,6 +99,7 @@ npm run build
 import { BrowserAgent } from 'browse-agent-sdk';
 
 const agent = new BrowserAgent({
+  // Optional: set to '' (or omit) for no-secret handshake
   secret: 'same-secret-as-extension',
   port: 9315,
 });
@@ -138,7 +146,7 @@ node examples/basic-usage.mjs
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `secret` | `string` | *required* | Shared HMAC secret |
+| `secret` | `string` | `''` | Optional shared HMAC secret |
 | `port` | `number` | `9315` | WebSocket server port |
 | `host` | `string` | `127.0.0.1` | WebSocket server host |
 | `timeout` | `number` | `30000` | Default command timeout (ms) |

@@ -21,8 +21,8 @@ import { DEFAULT_PORT } from 'browse-agent-shared';
 import { WSServer, type WSServerOptions } from './ws-server.js';
 
 export interface BrowserAgentOptions {
-  /** Shared secret for HMAC authentication (required) */
-  secret: string;
+  /** Optional shared secret for HMAC authentication. Empty uses no-secret handshake. */
+  secret?: string;
   /** WebSocket server port (default: 9315) */
   port?: number;
   /** WebSocket server host (default: 127.0.0.1) */
@@ -64,7 +64,7 @@ export class BrowserAgent {
   constructor(options: BrowserAgentOptions) {
     this.defaultTimeout = options.timeout ?? 30000;
     this.server = new WSServer({
-      secret: options.secret,
+      secret: options.secret ?? '',
       port: options.port ?? DEFAULT_PORT,
       host: options.host ?? '127.0.0.1',
     });

@@ -4,3 +4,5 @@ dist/
 *.log
 packages/extension/build/
 .browse-agent
+.github/skills/browse-agent/
+_*.mjs
