@@ -18,6 +18,8 @@ export interface WSServerOptions {
   port?: number;
   host?: string;
   secret?: string;
+  /** Allow non-localhost connections. When true, binds to 0.0.0.0 and skips the remote-address check. */
+  allowRemote?: boolean;
 }
 
 type ResponseResolver = {
@@ -39,6 +41,8 @@ export class WSServer {
   private onConnected: (() => void) | null = null;
   private onDisconnected: (() => void) | null = null;
 
+  private allowRemote: boolean;
+
   private formatId(id: string): string {
     if (id.length <= 12) return id;
     return `${id.slice(0, 6)}...${id.slice(-4)}`;
@@ -48,7 +52,8 @@ export class WSServer {
     this.secret = options.secret ?? '';
     this.useSharedSecret = this.secret.length > 0;
     this.port = options.port ?? DEFAULT_PORT;
-    this.host = options.host ?? '127.0.0.1';
+    this.allowRemote = options.allowRemote ?? false;
+    this.host = options.host ?? (this.allowRemote ? '0.0.0.0' : '127.0.0.1');
   }
 
   /**
@@ -59,15 +64,17 @@ export class WSServer {
       this.wss = new WebSocketServer({
         port: this.port,
         host: this.host,
-        // Only accept connections from localhost
-        verifyClient: (info: { origin: string; req: IncomingMessage }) => {
-          const addr = info.req.socket.remoteAddress;
-          const accepted = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
-          if (!accepted) {
-            console.warn(`[BrowseAgent SDK] Rejected non-local connection from ${addr ?? 'unknown'}`);
-          }
-          return accepted;
-        },
+        // By default only accept connections from localhost; set allowRemote to lift the restriction.
+        verifyClient: this.allowRemote
+          ? undefined
+          : (info: { origin: string; req: IncomingMessage }) => {
+              const addr = info.req.socket.remoteAddress;
+              const accepted = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+              if (!accepted) {
+                console.warn(`[BrowseAgent SDK] Rejected non-local connection from ${addr ?? 'unknown'}`);
+              }
+              return accepted;
+            },
       });
 
       this.wss.on('listening', () => {
