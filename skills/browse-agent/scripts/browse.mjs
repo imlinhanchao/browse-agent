@@ -50,11 +50,13 @@ export { listTabs, closeTab, activateTab } from './tabs.mjs';
  * @param {number} [options.port]            - WebSocket port
  * @param {number} [options.timeout]         - Connection timeout (ms)
  * @param {string} [options.secret]          - Optional shared secret
+ * @param {boolean} [options.printResult]    - Print callback return value as JSON (default: true)
  */
 export async function browse(task, options = {}) {
   const opts = resolveOptions(options);
   let session;
   let agent;
+  let taskResult;
   try {
     // 1. Launch browser
     session = await launchBrowser(opts);
@@ -65,9 +67,10 @@ export async function browse(task, options = {}) {
     console.error('[browse-agent] Extension connected');
 
     // 3. Run user task
-    const result = await task(agent);
-    if (result !== undefined) {
-      console.log(JSON.stringify(result, null, 2));
+    taskResult = await task(agent);
+    const shouldPrintResult = options.printResult !== false;
+    if (shouldPrintResult && taskResult !== undefined) {
+      console.log(JSON.stringify(taskResult, null, 2));
     }
   } catch (err) {
     console.error('[browse-agent] Error:', err.message);
@@ -82,4 +85,6 @@ export async function browse(task, options = {}) {
     }
     cleanExtensionWork();
   }
+
+  return taskResult;
 }

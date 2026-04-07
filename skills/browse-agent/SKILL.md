@@ -41,9 +41,9 @@ await browse(async (agent) => {
 
   // Return a value to print it as JSON to stdout
   return {
-    url: content.data.url,
-    title: content.data.title,
-    content: content.data.content,
+    url: content.url,
+    title: content.title,
+    content: content.content,
   };
 });
 ```
@@ -57,6 +57,8 @@ The `browse(task, options?)` function:
 6. Returns value as JSON to stdout
 7. Kills the browser and cleans up
 
+It also returns the callback value as the resolved Promise result.
+
 **Options** (passed as second argument or via env vars):
 
 | Option / Env Var | Values | Default | Description |
@@ -67,6 +69,7 @@ The `browse(task, options?)` function:
 | `port` / `BROWSE_AGENT_PORT` | number | `9315` | WebSocket port |
 | `timeout` / `CONNECTION_TIMEOUT` | ms | `30000` | Connection timeout |
 | `secret` / `SHARED_SECRET` | string | `''` | Optional shared secret. Empty uses no-secret handshake |
+| `printResult` | `true`, `false` | `true` | Print callback return value to stdout as JSON |
 | — / `CHROME_PATH` | path | — | Custom browser executable path |
 
 ```javascript
@@ -74,6 +77,14 @@ The `browse(task, options?)` function:
 await browse(async (agent) => { /* ... */ }, {
   browser: 'edge',
   useUserProfile: true,
+});
+
+// Example: return result without printing JSON to stdout
+const data = await browse(async (agent) => {
+  await agent.navigate('https://example.com');
+  return { title: 'ok' };
+}, {
+  printResult: false,
 });
 ```
 
@@ -96,14 +107,20 @@ BROWSER=edge USE_USER_PROFILE=true node _browse_task.mjs 2>/dev/null
 CHROME_PATH=/path/to/browser node _browse_task.mjs 2>/dev/null
 ```
 
-- **stdout**: JSON result data (for AI consumption)
-- **stderr**: Diagnostic logs (for debugging)
+- **stdout**: Result JSON, but some SDK logs may also appear on stdout depending on environment
+- **stderr**: Most diagnostic logs
 
 Use `2>/dev/null` to suppress logs when only data is needed. Omit it when debugging.
 
 ### Step 3: Parse Output and Clean Up
 
-Read stdout JSON. Delete the temporary script file when done.
+Prefer one of these parsing strategies:
+
+- Parse the first complete JSON object from stdout (ignore non-JSON log lines)
+- Or keep script output JSON-only (return final data from `browse(...)` callback and avoid extra `console.log` outside)
+- Or set `printResult: false` and handle the returned value in code instead of parsing stdout
+
+Then delete the temporary script file when done.
 
 ## Modular Scripts
 
@@ -162,7 +179,7 @@ import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from '.
 
 ## API Reference
 
-| Method | Description | Result (`response.data`) |
+| Method | Description | Result |
 |--------|-------------|--------------------------|
 | `navigate(url, opts?)` | Open URL in new tab. `opts: { waitForLoad?, timeout?, tabId? }` | `{ tabId, url, title }` |
 | `getContent(opts?)` | Get page content. `opts: { format: 'html'\|'text', tabId? }` | `{ content, url, title }` |
@@ -177,7 +194,7 @@ import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from '.
 | `closeTab(tabId)` | Close a tab | — |
 | `activateTab(tabId)` | Switch to a tab | — |
 
-All methods return `Promise<SuccessResponse<T>>`. Access data via `response.data`.
+All methods return direct result objects (for example `{ result }`, `{ content, url, title }`, `{ tabs }`).
 
 ## Examples
 
@@ -189,7 +206,7 @@ import { browse } from './skills/browse-agent/scripts/browse.mjs';
 await browse(async (agent) => {
   await agent.navigate('https://example.com');
   const result = await agent.getContent({ format: 'text' });
-  return { title: result.data.title, text: result.data.content };
+  return { title: result.title, text: result.content };
 });
 ```
 
@@ -204,7 +221,7 @@ await browse(async (agent) => {
     property: 'innerText',
     all: true,
   });
-  return { headlines: titles.data.result };
+  return { headlines: titles.result };
 });
 ```
 
@@ -216,7 +233,7 @@ import { browse } from './skills/browse-agent/scripts/browse.mjs';
 await browse(async (agent) => {
   await agent.navigate('https://example.com');
   const count = await agent.evaluate('document.querySelectorAll("a").length');
-  return { linkCount: count.data.result };
+  return { linkCount: count.result };
 });
 ```
 
@@ -229,8 +246,8 @@ import { writeFileSync } from 'fs';
 await browse(async (agent) => {
   await agent.navigate('https://example.com');
   const shot = await agent.screenshotVisible({ format: 'png' });
-  writeFileSync('screenshot.png', Buffer.from(shot.data.data, 'base64'));
-  return { saved: 'screenshot.png', width: shot.data.width, height: shot.data.height };
+  writeFileSync('screenshot.png', Buffer.from(shot.data, 'base64'));
+  return { saved: 'screenshot.png', width: shot.width, height: shot.height };
 });
 ```
 
@@ -245,9 +262,9 @@ await browse(async (agent) => {
   for (const url of urls) {
     await agent.navigate(url);
     const page = await agent.getContent({ format: 'text' });
-    results.push({ url: page.data.url, title: page.data.title, content: page.data.content });
+    results.push({ url: page.url, title: page.title, content: page.content });
     const tabs = await agent.listTabs();
-    const tab = tabs.data.tabs.find(t => t.url === url);
+    const tab = tabs.tabs.find(t => t.url === url);
     if (tab) await agent.closeTab(tab.id);
   }
   return results;
@@ -262,7 +279,7 @@ import { browse } from './skills/browse-agent/scripts/browse.mjs';
 await browse(async (agent) => {
   await agent.navigate('https://github.com/notifications');
   const content = await agent.getContent({ format: 'text' });
-  return { title: content.data.title, content: content.data.content };
+  return { title: content.title, content: content.content };
 }, { useUserProfile: true });
 ```
 
