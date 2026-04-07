@@ -36,9 +36,10 @@ router.get('/', async (_req, res) => {
 
 /** Create a new instance. */
 router.post('/', async (req, res) => {
+  let wsPort: number | undefined;
   try {
     const { name, secret } = req.body ?? {};
-    const wsPort = agentManager.allocatePort();
+    wsPort = agentManager.allocatePort();
     const instance: InstanceData = {
       id: generateId(),
       name: name?.trim() || `Browser-${generateId().slice(0, 4)}`,
@@ -60,7 +61,7 @@ router.post('/', async (req, res) => {
       connected: false,
     });
   } catch (e: any) {
-    agentManager.releasePort(0); // no-op safety
+    if (wsPort !== undefined) agentManager.releasePort(wsPort);
     res.status(500).json({ error: e.message });
   }
 });

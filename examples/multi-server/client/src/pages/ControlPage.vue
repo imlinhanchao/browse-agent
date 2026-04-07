@@ -383,9 +383,12 @@ let scrollThrottled = false;
 
 async function scrollPage(deltaY: number) {
   if (!selectedTabId.value) return;
-  const code = lastScrollTargetSelector
-    ? `(function(){ const el = document.querySelector(${JSON.stringify(lastScrollTargetSelector)}); if(el) el.scrollTop += ${deltaY}; else window.scrollBy(0, ${deltaY}); })()`
-    : `window.scrollBy(0, ${deltaY})`;
+  // Pass selector via a self-invoking function argument to avoid string injection risks.
+  // JSON.stringify safely escapes the selector, but using a parameter is cleaner.
+  const selectorArg = lastScrollTargetSelector
+    ? `document.querySelector(${JSON.stringify(lastScrollTargetSelector)})`
+    : 'null';
+  const code = `(function(el, dy){ if(el) el.scrollTop += dy; else window.scrollBy(0, dy); })(${selectorArg}, ${Number(deltaY)})`;
   try {
     await api('evaluate', { body: { expression: code, tabId: selectedTabId.value } });
     await takeScreenshot();
