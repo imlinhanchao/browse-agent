@@ -23,7 +23,10 @@ node skills/browse-agent/scripts/setup.mjs
 
 This installs `browse-agent-sdk` from npm and downloads the Chrome extension from the [latest release](https://github.com/imlinhanchao/browse-agent/releases/latest) into `.browse-agent/extension/`.
 
-If setup has already been done (`.browse-agent/extension/manifest.json` exists and `browse-agent-sdk` is in `node_modules`), skip this step.
+The setup script checks existing installation state before doing any work:
+
+- If `.browse-agent/extension/manifest.json` exists and `browse-agent-sdk` is already present in `node_modules`, it exits immediately.
+- If only one part is missing, it installs only the missing SDK or extension step.
 
 ## Usage Procedure
 
@@ -181,15 +184,15 @@ import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from '.
 
 | Method | Description | Result |
 |--------|-------------|--------------------------|
-| `navigate(url, opts?)` | Open URL in new tab. `opts: { waitForLoad?, timeout?, tabId? }` | `{ tabId, url, title }` |
+| `navigate(url, opts?)` | Open URL in new tab. `opts: { waitForLoad?, timeout? }` | `{ tabId, url, title }` |
 | `getContent(opts?)` | Get page content. `opts: { format: 'html'\|'text', tabId? }` | `{ content, url, title }` |
 | `getDOM(selector, opts?)` | Query DOM. `opts: { property?: 'outerHTML'\|'innerHTML'\|'innerText', all?, tabId? }` | `{ result }` |
-| `evaluate(expression, opts?)` | Run JS expression, return value. `opts: { tabId? }` | `{ result }` |
-| `injectScript(code, opts?)` | Execute JS code block. `opts: { tabId? }` | `{ success }` |
-| `injectCSS(code, opts?)` | Inject CSS stylesheet. `opts: { tabId? }` | `{ success }` |
+| `evaluate(expression, tabId?)` | Run JS expression, return value. | `{ result }` |
+| `injectScript(code, tabId?)` | Execute JS code block. | `{ success }` |
+| `injectCSS(code, tabId?)` | Inject CSS stylesheet. | `{ success }` |
 | `screenshotVisible(opts?)` | Capture viewport. `opts: { format?, quality?, tabId? }` | `{ data (base64), format, width, height }` |
 | `screenshotFullPage(opts?)` | Capture full page. `opts: { format?, quality?, tabId? }` | `{ data (base64), format, width, height }` |
-| `screenshotArea(clip, opts?)` | Capture region. `clip: { x, y, width, height }` | `{ data (base64), format, width, height }` |
+| `screenshotArea(clip, opts?)` | Capture region. `clip: { x, y, width, height }` `opts: { format?, quality?, tabId? }` | `{ data (base64), format, width, height }` |
 | `listTabs()` | List all open tabs | `{ tabs: [{ id, url, title, active }] }` |
 | `closeTab(tabId)` | Close a tab | — |
 | `activateTab(tabId)` | Switch to a tab | — |
@@ -204,8 +207,8 @@ All methods return direct result objects (for example `{ result }`, `{ content, 
 import { browse } from './skills/browse-agent/scripts/browse.mjs';
 
 await browse(async (agent) => {
-  await agent.navigate('https://example.com');
-  const result = await agent.getContent({ format: 'text' });
+  const { tabId } = await agent.navigate('https://example.com');
+  const result = await agent.getContent({ format: 'text', tabId });
   return { title: result.title, text: result.content };
 });
 ```
@@ -216,10 +219,11 @@ await browse(async (agent) => {
 import { browse } from './skills/browse-agent/scripts/browse.mjs';
 
 await browse(async (agent) => {
-  await agent.navigate('https://news.ycombinator.com');
+  const { tabId } = await agent.navigate('https://news.ycombinator.com');
   const titles = await agent.getDOM('.titleline > a', {
     property: 'innerText',
     all: true,
+    tabId,
   });
   return { headlines: titles.result };
 });
@@ -231,8 +235,8 @@ await browse(async (agent) => {
 import { browse } from './skills/browse-agent/scripts/browse.mjs';
 
 await browse(async (agent) => {
-  await agent.navigate('https://example.com');
-  const count = await agent.evaluate('document.querySelectorAll("a").length');
+  const { tabId } = await agent.navigate('https://example.com');
+  const count = await agent.evaluate('document.querySelectorAll("a").length', tabId);
   return { linkCount: count.result };
 });
 ```
@@ -244,8 +248,8 @@ import { browse } from './skills/browse-agent/scripts/browse.mjs';
 import { writeFileSync } from 'fs';
 
 await browse(async (agent) => {
-  await agent.navigate('https://example.com');
-  const shot = await agent.screenshotVisible({ format: 'png' });
+  const { tabId } = await agent.navigate('https://example.com');
+  const shot = await agent.screenshotVisible({ format: 'png', tabId });
   writeFileSync('screenshot.png', Buffer.from(shot.data, 'base64'));
   return { saved: 'screenshot.png', width: shot.width, height: shot.height };
 });
@@ -260,8 +264,8 @@ await browse(async (agent) => {
   const urls = ['https://example.com', 'https://example.org'];
   const results = [];
   for (const url of urls) {
-    await agent.navigate(url);
-    const page = await agent.getContent({ format: 'text' });
+    const { tabId } = await agent.navigate(url);
+    const page = await agent.getContent({ format: 'text', tabId });
     results.push({ url: page.url, title: page.title, content: page.content });
     const tabs = await agent.listTabs();
     const tab = tabs.tabs.find(t => t.url === url);
@@ -277,8 +281,8 @@ await browse(async (agent) => {
 import { browse } from './skills/browse-agent/scripts/browse.mjs';
 
 await browse(async (agent) => {
-  await agent.navigate('https://github.com/notifications');
-  const content = await agent.getContent({ format: 'text' });
+  const { tabId } = await agent.navigate('https://github.com/notifications');
+  const content = await agent.getContent({ format: 'text', tabId });
   return { title: content.title, content: content.content };
 }, { useUserProfile: true });
 ```
