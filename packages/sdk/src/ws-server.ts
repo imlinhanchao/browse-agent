@@ -12,7 +12,7 @@ import {
   generateId,
   TIMESTAMP_TOLERANCE,
   DEFAULT_PORT,
-} from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
 
 export interface WSServerOptions {
   port?: number;
@@ -216,7 +216,7 @@ export class WSServer {
   /**
    * Send a command to the extension and wait for response.
    */
-  sendCommand<T = unknown>(command: import('@anthropic/browse-agent-shared').Command, timeout = 30000): Promise<T> {
+  sendCommand<T = unknown>(command: import('browse-agent-shared').Command, timeout = 30000): Promise<T> {
     return new Promise((resolve, reject) => {
       if (!this.client || !this.authenticated) {
         reject(new Error('Extension not connected or not authenticated'));

@@ -12,11 +12,12 @@ import type {
   ScreenshotResult,
   ListTabsResult,
   CloseTabCommand,
+  ActivateTabCommand,
   EvaluateCommand,
   EvaluateResult,
   Command,
-} from '@anthropic/browse-agent-shared';
-import { DEFAULT_PORT } from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
+import { DEFAULT_PORT } from 'browse-agent-shared';
 import { WSServer, type WSServerOptions } from './ws-server.js';
 
 export interface BrowserAgentOptions {
@@ -152,6 +153,14 @@ export class BrowserAgent {
     return this.server.sendCommand<void>(cmd, this.defaultTimeout);
   }
 
+  /**
+   * Activate (switch to) a tab.
+   */
+  async activateTab(tabId: number): Promise<void> {
+    const cmd: ActivateTabCommand = { type: 'activateTab', tabId };
+    return this.server.sendCommand<void>(cmd, this.defaultTimeout);
+  }
+
   // --------------------------------------------------------
   // Injection
   // --------------------------------------------------------
@@ -193,7 +202,7 @@ export class BrowserAgent {
    * Evaluate a JavaScript expression in a page and return the result.
    */
   async evaluate(expression: string, tabId?: number): Promise<EvaluateResult> {
-    const cmd: EvaluateCommand = { type: 'evaluate', expression, tabId };
+    const cmd: EvaluateCommand = { type: 'evaluate', expression: expression.trim(), tabId };
     return this.server.sendCommand<EvaluateResult>(cmd, this.defaultTimeout);
   }
 

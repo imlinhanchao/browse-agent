@@ -5,6 +5,10 @@
     "rootDir": "./src",
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "browse-agent-shared": ["../shared/src/index.ts"]
+    },
     "lib": ["ES2022"],
     "types": ["node"]
   },

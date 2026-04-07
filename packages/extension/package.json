@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic/browse-agent-extension",
+  "name": "browse-agent-extension",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,11 +8,11 @@
     "clean": "rm -rf build"
   },
   "dependencies": {
-    "@anthropic/browse-agent-shared": "*"
+    "browse-agent-shared": "*"
   },
   "devDependencies": {
-    "@anthropic/browse-agent-shared": "*",
-    "@anthropic/browse-agent-extension": "file:.",
+    "browse-agent-shared": "*",
+    "browse-agent-extension": "file:.",
     "@types/chrome": "^0.0.268",
     "copy-webpack-plugin": "^12.0.0",
     "ts-loader": "^9.5.0",

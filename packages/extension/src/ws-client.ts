@@ -9,7 +9,7 @@ import {
   generateNonce,
   generateId,
   TIMESTAMP_TOLERANCE,
-} from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
 
 type MessageHandler = (payload: CommandPayload, requestId: string) => Promise<void>;
 

@@ -236,8 +236,6 @@
     .content-area {
       flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: auto;
       background: var(--bg);
       position: relative;
@@ -246,6 +244,7 @@
       position: relative;
       display: inline-block;
       cursor: crosshair;
+      margin: auto;
     }
     .viewport-container img {
       display: block;
@@ -260,6 +259,7 @@
       gap: 16px;
       color: var(--muted);
       font-size: 14px;
+      margin: auto;
     }
     .viewport-placeholder .icon {
       font-size: 48px;
@@ -465,6 +465,12 @@
         <option value="3000">3s</option>
         <option value="5000">5s</option>
       </select>
+      <span style="color:var(--border)">│</span>
+      <button class="nav-btn" id="btnScrollUp" title="Scroll up" style="font-size:13px">⬆</button>
+      <button class="nav-btn" id="btnScrollDown" title="Scroll down" style="font-size:13px">⬇</button>
+      <button class="nav-btn" id="btnScrollTop" title="Scroll to top" style="font-size:13px">⤒</button>
+      <button class="nav-btn" id="btnScrollBottom" title="Scroll to bottom" style="font-size:13px">⤓</button>
+      <span style="color:var(--border)">│</span>
       <button class="nav-btn" id="btnScreenshot" title="Take screenshot now" style="font-size:13px">📷</button>
     </div>
 
@@ -520,6 +526,8 @@ let screenshotHeight = 0;
 let isLoading = false;
 let refreshTimer = null;
 let connected = false;
+// 缓存最近一次点击的滚动容器的唯一标识
+let lastScrollTargetSelector = null;
 
 // ── DOM refs ────────────────────────────────────────────
 const tabList = document.getElementById('tabList');
@@ -641,6 +649,11 @@ async function selectTab(tabId) {
   if (tab) {
     urlInput.value = tab.url;
   }
+  try {
+    await api('activateTab', { body: { tabId } });
+  } catch (e) {
+    toast('Failed to activate tab: ' + e.message, 'error');
+  }
   await takeScreenshot();
 }
 
@@ -756,31 +769,74 @@ async function simulateClick(pageX, pageY) {
 
   toolbarInfo.textContent = `Clicking at (${Math.round(pageX)}, ${Math.round(pageY)})...`;
   try {
+    // 注入代码：点击并返回最近的可滚动容器的唯一选择器
     const code = `
       (function() {
-        const x = ${Math.round(pageX)};
-        const y = ${Math.round(pageY)};
+        function getScrollableAncestor(el) {
+          while (el && el !== document.body && el !== document.documentElement) {
+            const style = window.getComputedStyle(el);
+            const overflowY = style.overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+              return el;
+            }
+            el = el.parentElement;
+          }
+          return null;
+        }
+        function getDomPath(el) {
+          if (!el) return null;
+          if (el.id) return '#'+el.id;
+          let path = [];
+          while (el && el.nodeType === 1 && el !== document.body) {
+            let name = el.nodeName.toLowerCase();
+            if (el.className) name += '.' + Array.from(el.classList).join('.');
+            let sib = el, idx = 1;
+            while ((sib = sib.previousElementSibling)) if (sib.nodeName === el.nodeName) idx++;
+            name += ':nth-of-type(' + idx + ')';
+            path.unshift(name);
+            el = el.parentElement;
+          }
+          return path.length ? path.join('>') : null;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        const x = ${Math.round(pageX)} / dpr;
+        const y = ${Math.round(pageY)} / dpr;
         const el = document.elementFromPoint(x, y);
         if (!el) return { clicked: false, reason: 'no element at point' };
+
+        // 找到最近的可滚动容器
+        const scrollable = getScrollableAncestor(el);
+        const scrollSelector = getDomPath(scrollable);
 
         // Dispatch full mouse event sequence
         const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 };
         el.dispatchEvent(new MouseEvent('mouseover', opts));
         el.dispatchEvent(new MouseEvent('mousedown', opts));
         el.dispatchEvent(new MouseEvent('mouseup', opts));
-        el.dispatchEvent(new MouseEvent('click', opts));
 
-        // If it's a link, navigate
-        const link = el.closest('a[href]');
-        if (link && link.href && !link.href.startsWith('javascript:')) {
-          location.href = link.href;
-          return { clicked: true, tag: el.tagName, navigated: link.href };
+        // Focus the element for subsequent keyboard input
+        if (typeof el.focus === 'function') {
+          el.focus();
         }
 
-        return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100) };
+        // If it's a link, navigate
+        const link = el.closest('a[href],button,input[type=button],input[type=submit],input[type=reset]');
+        if (link) {
+          link.click();
+          return { clicked: true, tag: el.tagName, navigated: link.href, scrollSelector };
+        }
+
+        return { clicked: true, tag: el.tagName, text: (el.textContent || '').slice(0, 100), scrollSelector };
       })()
-    `;
+    `.trim();
     const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+
+    // 缓存最近的滚动容器选择器
+    if (result.result && result.result.scrollSelector) {
+      lastScrollTargetSelector = result.result.scrollSelector;
+    } else {
+      lastScrollTargetSelector = null;
+    }
 
     if (result.result && result.result.navigated) {
       toast('Navigating to: ' + result.result.navigated, 'success');
@@ -838,6 +894,18 @@ screenshotImg.addEventListener('mouseleave', () => {
   cursorTooltip.style.display = 'none';
 });
 
+// ── Scroll via mouse wheel on screenshot ────────────────
+let scrollThrottled = false;
+viewportContainer.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (scrollThrottled || !selectedTabId) return;
+  scrollThrottled = true;
+  const delta = Math.round(e.deltaY);
+  scrollPage(delta).finally(() => {
+    scrollThrottled = false;
+  });
+}, { passive: false });
+
 // ── Event bindings ──────────────────────────────────────
 urlInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -849,6 +917,10 @@ document.getElementById('btnBack').addEventListener('click', goBack);
 document.getElementById('btnForward').addEventListener('click', goForward);
 document.getElementById('btnReload').addEventListener('click', reloadPage);
 document.getElementById('btnScreenshot').addEventListener('click', () => takeScreenshot());
+document.getElementById('btnScrollUp').addEventListener('click', () => scrollPage(-300));
+document.getElementById('btnScrollDown').addEventListener('click', () => scrollPage(300));
+document.getElementById('btnScrollTop').addEventListener('click', () => scrollToEdge('top'));
+document.getElementById('btnScrollBottom').addEventListener('click', () => scrollToEdge('bottom'));
 document.getElementById('btnRefreshTabs').addEventListener('click', () => refreshTabs());
 document.getElementById('btnNewTab').addEventListener('click', () => {
   const url = prompt('Enter URL to open:', 'https://example.com');
@@ -943,7 +1015,7 @@ async function sendTextInput(text) {
           return { typed: true, tag, into: 'keyEvents', length: text.length };
         }
       })()
-    `;
+    `.trim();
     const result = await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
     if (result.result && result.result.typed) {
       toast(`Typed ${result.result.length} chars into <${result.result.tag}>`, 'success');
@@ -1048,6 +1120,75 @@ document.querySelectorAll('.key-btn').forEach(btn => {
     sendKey(btn.dataset.key);
   });
 });
+
+// ── Scroll ──────────────────────────────────────────────
+async function scrollPage(deltaY) {
+  if (!selectedTabId) return;
+  try {
+    // 优先在最近的滚动容器上滚动，否则回退到 window
+    let code;
+    if (lastScrollTargetSelector) {
+      code = `
+        (function() {
+          function getByPath(sel) {
+            if (!sel) return null;
+            if (sel.startsWith('#')) return document.getElementById(sel.slice(1));
+            try { return document.querySelector(sel); } catch { return null; }
+          }
+          const el = getByPath(${JSON.stringify(lastScrollTargetSelector)});
+          if (el) {
+            el.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' });
+            return { scrolled: true, target: 'element' };
+          } else {
+            window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' });
+            return { scrolled: true, target: 'window' };
+          }
+        })()
+      `;
+    } else {
+      code = `(window.scrollBy({ top: ${Math.round(deltaY)}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    }
+    await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 350));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Scroll failed: ' + e.message, 'error');
+  }
+}
+
+async function scrollToEdge(edge) {
+  if (!selectedTabId) return;
+  try {
+    let code;
+    if (lastScrollTargetSelector) {
+      code = `
+        (function() {
+          function getByPath(sel) {
+            if (!sel) return null;
+            if (sel.startsWith('#')) return document.getElementById(sel.slice(1));
+            try { return document.querySelector(sel); } catch { return null; }
+          }
+          const el = getByPath(${JSON.stringify(lastScrollTargetSelector)});
+          if (el) {
+            el.scrollTo({ top: ${edge === 'top' ? 0 : 'el.scrollHeight'}, behavior: 'smooth' });
+            return { scrolled: true, target: 'element' };
+          } else {
+            window.scrollTo({ top: ${edge === 'top' ? 0 : 'document.documentElement.scrollHeight'}, behavior: 'smooth' });
+            return { scrolled: true, target: 'window' };
+          }
+        })()
+      `;
+    } else {
+      const y = edge === 'top' ? '0' : 'document.documentElement.scrollHeight';
+      code = `(window.scrollTo({ top: ${y}, behavior: 'smooth' }), { scrollX: window.scrollX, scrollY: window.scrollY })`;
+    }
+    await api('evaluate', { body: { expression: code, tabId: selectedTabId } });
+    await new Promise(r => setTimeout(r, 500));
+    await takeScreenshot();
+  } catch (e) {
+    toast('Scroll failed: ' + e.message, 'error');
+  }
+}
 
 // ── Init ────────────────────────────────────────────────
 pollStatus();

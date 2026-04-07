@@ -75,6 +75,18 @@ app.post('/api/closeTab', async (req, res) => {
   }
 });
 
+// ── Activate Tab ────────────────────────────────────────
+app.post('/api/activateTab', async (req, res) => {
+  try {
+    const { tabId } = req.body;
+    if (tabId === undefined) return res.status(400).json({ error: 'tabId is required' });
+    await agent.activateTab(tabId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Inject Script ───────────────────────────────────────
 app.post('/api/injectScript', async (req, res) => {
   try {

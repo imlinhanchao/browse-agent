@@ -5,8 +5,9 @@ import type {
   ContentResult,
   ListTabsResult,
   CloseTabCommand,
+  ActivateTabCommand,
   TabInfo,
-} from '@anthropic/browse-agent-shared';
+} from 'browse-agent-shared';
 
 /**
  * Get the active tab ID, or use the provided tabId.
@@ -88,6 +89,13 @@ export async function handleListTabs(): Promise<ListTabsResult> {
  */
 export async function handleCloseTab(cmd: CloseTabCommand): Promise<void> {
   await chrome.tabs.remove(cmd.tabId);
+}
+
+/**
+ * Activate (switch to) a tab.
+ */
+export async function handleActivateTab(cmd: ActivateTabCommand): Promise<void> {
+  await chrome.tabs.update(cmd.tabId, { active: true });
 }
 
 /**
