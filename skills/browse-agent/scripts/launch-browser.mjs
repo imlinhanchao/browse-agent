@@ -14,13 +14,13 @@
 import { spawn } from 'child_process';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
-import { BrowserAgent } from 'browse-agent-sdk';
 import {
   findBrowser, getProfileDir, patchExtension,
-  resolveOptions, saveSession,
+  resolveOptions, saveSession, importSdk,
 } from './config.mjs';
 
 export async function launchBrowser(options = {}) {
+  const { BrowserAgent } = await importSdk();
   const opts = resolveOptions(options);
   const extensionWork = patchExtension(opts.port, opts.secret);
   const profileDir = getProfileDir(opts.browser, opts.useUserProfile);

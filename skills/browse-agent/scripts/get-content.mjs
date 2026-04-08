@@ -10,5 +10,5 @@
  */
 export async function getContent(agent, options = {}) {
   const result = await agent.getContent(options);
-  return result.data;
+  return result;
 }

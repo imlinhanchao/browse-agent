@@ -15,7 +15,7 @@
  */
 export async function listTabs(agent) {
   const result = await agent.listTabs();
-  return result.data;
+  return result;
 }
 
 export async function closeTab(agent, tabId) {

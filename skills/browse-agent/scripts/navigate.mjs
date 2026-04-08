@@ -10,5 +10,5 @@
  */
 export async function navigate(agent, url, options = {}) {
   const result = await agent.navigate(url, options);
-  return result.data;
+  return result;
 }

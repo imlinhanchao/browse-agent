@@ -9,6 +9,6 @@
  * Returns: { success }
  */
 export async function injectCSS(agent, code, options = {}) {
-  const result = await agent.injectCSS(code, options);
-  return result.data;
+  const result = await agent.injectCSS(code, options.tabId);
+  return result;
 }

@@ -9,6 +9,6 @@
  * Returns: { result }
  */
 export async function evaluate(agent, expression, options = {}) {
-  const result = await agent.evaluate(expression, options);
-  return result.data;
+  const result = await agent.evaluate(expression, options.tabId);
+  return result;
 }

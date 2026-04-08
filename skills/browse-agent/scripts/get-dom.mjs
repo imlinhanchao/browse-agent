@@ -15,5 +15,5 @@
  */
 export async function getDOM(agent, selector, options = {}) {
   const result = await agent.getDOM(selector, options);
-  return result.data;
+  return result;
 }

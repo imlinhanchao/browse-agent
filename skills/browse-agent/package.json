@@ -1,0 +1,25 @@
+{
+  "name": "browse-agent",
+  "version": "1.0.0",
+  "description": "Browser automation agent skills",
+  "main": "cli.mjs",
+  "bin": {
+    "browse-agent": "./cli.mjs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlinhanchao/browse-agent.git"
+  },
+  "author": "Hancel.Lin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/imlinhanchao/browse-agent/issues"
+  },
+  "homepage": "https://github.com/imlinhanchao/browse-agent#readme",
+  "dependencies": {
+    "browse-agent-sdk": "^0.0.2"
+  }
+}

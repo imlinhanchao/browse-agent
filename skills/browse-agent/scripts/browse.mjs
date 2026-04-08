@@ -7,7 +7,7 @@
  *   await browse(async (agent) => {
  *     await agent.navigate('https://example.com');
  *     const content = await agent.getContent({ format: 'text' });
- *     return { title: content.data.title, text: content.data.content };
+ *     return { title: content.title, text: content.content };
  *   });
  *
  * Environment variables:
@@ -27,6 +27,7 @@ import { closeBrowser } from './close-browser.mjs';
 export { launchBrowser } from './launch-browser.mjs';
 export { connect } from './connect.mjs';
 export { closeBrowser } from './close-browser.mjs';
+export { clear } from './clear.mjs';
 export { navigate } from './navigate.mjs';
 export { getContent } from './get-content.mjs';
 export { getDOM } from './get-dom.mjs';

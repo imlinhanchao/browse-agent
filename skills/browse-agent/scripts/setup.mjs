@@ -2,89 +2,107 @@
 /**
  * Setup script for browse-agent skill.
  * Installs browse-agent-sdk and downloads the Chrome extension.
+ *
+ * Usage:
+ *   node setup.mjs              # local setup (in project .browse-agent/)
+ *   node setup.mjs --global     # global setup (in ~/.browse-agent/)
  */
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync, unlinkSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { GLOBAL_BASE_DIR, LOCAL_BASE_DIR, isSdkInstalled, isSkillInCwd } from './config.mjs';
 
-const BASE_DIR = join(process.cwd(), '.browse-agent');
-const EXTENSION_DIR = join(BASE_DIR, 'extension');
-const ZIP_PATH = join(BASE_DIR, 'extension.zip');
-const SDK_DIR = join(process.cwd(), 'node_modules', 'browse-agent-sdk');
+export async function setup(options = {}) {
+  // Auto-detect: if skill is NOT in cwd → default global; if in cwd → default local
+  const isGlobal = options.global !== undefined ? options.global : !isSkillInCwd();
+  const BASE_DIR = isGlobal ? GLOBAL_BASE_DIR : LOCAL_BASE_DIR;
+  const EXTENSION_DIR = join(BASE_DIR, 'extension');
+  const ZIP_PATH = join(BASE_DIR, 'extension.zip');
 
-const sdkInstalled = existsSync(SDK_DIR);
-const extensionInstalled = existsSync(join(EXTENSION_DIR, 'manifest.json'));
+  const sdkInstalled = isSdkInstalled(isGlobal);
+  const extensionInstalled = existsSync(join(EXTENSION_DIR, 'manifest.json'));
 
-if (sdkInstalled && extensionInstalled) {
-  console.log('browse-agent is already set up.');
-  console.log(`  Extension path: ${EXTENSION_DIR}`);
-  console.log('  SDK: browse-agent-sdk (npm)\n');
-  process.exit(0);
-}
-
-console.log('Setting up browse-agent...\n');
-
-// 1. Install SDK
-if (sdkInstalled) {
-  console.log('[1/3] Installing browse-agent-sdk...');
-  console.log('  Skipped: browse-agent-sdk is already installed.');
-} else {
-  console.log('[1/3] Installing browse-agent-sdk...');
-  execSync('npm install browse-agent-sdk', { stdio: 'inherit' });
-}
-
-// 2. Create directories
-mkdirSync(BASE_DIR, { recursive: true });
-
-if (extensionInstalled) {
-  console.log('\n[2/3] Downloading Chrome extension from latest release...');
-  console.log('  Skipped: extension is already installed.');
-  console.log('\n[3/3] Extracting extension...');
-  console.log('  Skipped: extension is already installed.');
-} else {
-  // 3. Download extension from latest release
-  console.log('\n[2/3] Downloading Chrome extension from latest release...');
-  const releaseApi = 'https://api.github.com/repos/imlinhanchao/browse-agent/releases/latest';
-  const releaseJson = execSync(`curl -s "${releaseApi}"`).toString();
-  const releaseInfo = JSON.parse(releaseJson);
-  const asset = releaseInfo.assets?.find(a => a.name.endsWith('.zip'));
-  if (!asset) {
-    console.error('Error: No extension zip found in latest release.');
-    console.error('Visit https://github.com/imlinhanchao/browse-agent/releases to check.');
-    process.exit(1);
+  if (sdkInstalled && extensionInstalled) {
+    console.log('browse-agent is already set up.' + (isGlobal ? ' (global)' : ''));
+    console.log(`  Extension path: ${EXTENSION_DIR}`);
+    console.log('  SDK: browse-agent-sdk\n');
+    return;
   }
-  console.log(`  Downloading ${asset.name} (${(asset.size / 1024).toFixed(1)} KB)...`);
-  execSync(`curl -sL -o "${ZIP_PATH}" "${asset.browser_download_url}"`);
 
-  // 4. Extract extension
-  console.log('\n[3/3] Extracting extension...');
-  if (existsSync(EXTENSION_DIR)) {
-    execSync(`rm -rf "${EXTENSION_DIR}"`);
+  console.log(`Setting up browse-agent${isGlobal ? ' (global)' : ''}...\n`);
+
+  // 1. Install SDK
+  console.log('[1/3] Installing browse-agent-sdk...');
+  if (sdkInstalled) {
+    console.log('  Skipped: browse-agent-sdk is already installed.');
+  } else if (isGlobal) {
+    mkdirSync(BASE_DIR, { recursive: true });
+    execSync(`npm install --prefix "${BASE_DIR}" browse-agent-sdk`, { stdio: 'inherit' });
+  } else {
+    execSync('npm install browse-agent-sdk', { stdio: 'inherit' });
   }
-  mkdirSync(EXTENSION_DIR, { recursive: true });
-  execSync(`unzip -o "${ZIP_PATH}" -d "${EXTENSION_DIR}"`, { stdio: 'pipe' });
-  unlinkSync(ZIP_PATH);
 
-  // Verify extraction
-  const files = readdirSync(EXTENSION_DIR);
-  if (!files.includes('manifest.json')) {
-    // Check if files are in a subdirectory
-    const subdirs = files.filter(f => {
-      try { return readdirSync(join(EXTENSION_DIR, f)).includes('manifest.json'); } catch { return false; }
-    });
-    if (subdirs.length > 0) {
-      // Move files up from subdirectory
-      const subdir = join(EXTENSION_DIR, subdirs[0]);
-      execSync(`mv "${subdir}"/* "${EXTENSION_DIR}"/`);
-      execSync(`rmdir "${subdir}"`);
-    } else {
-      console.error('Error: Extension extraction failed - manifest.json not found.');
+  // 2. Create directories
+  mkdirSync(BASE_DIR, { recursive: true });
+
+  if (extensionInstalled) {
+    console.log('\n[2/3] Downloading Chrome extension from latest release...');
+    console.log('  Skipped: extension is already installed.');
+    console.log('\n[3/3] Extracting extension...');
+    console.log('  Skipped: extension is already installed.');
+  } else {
+    // 3. Download extension from latest release
+    console.log('\n[2/3] Downloading Chrome extension from latest release...');
+    const releaseApi = 'https://api.github.com/repos/imlinhanchao/browse-agent/releases/latest';
+    const releaseJson = execSync(`curl -s "${releaseApi}"`).toString();
+    const releaseInfo = JSON.parse(releaseJson);
+    const asset = releaseInfo.assets?.find(a => a.name.endsWith('.zip'));
+    if (!asset) {
+      console.error('Error: No extension zip found in latest release.');
+      console.error('Visit https://github.com/imlinhanchao/browse-agent/releases to check.');
       process.exit(1);
     }
+    console.log(`  Downloading ${asset.name} (${(asset.size / 1024).toFixed(1)} KB)...`);
+    execSync(`curl -sL -o "${ZIP_PATH}" "${asset.browser_download_url}"`);
+
+    // 4. Extract extension
+    console.log('\n[3/3] Extracting extension...');
+    if (existsSync(EXTENSION_DIR)) {
+      execSync(`rm -rf "${EXTENSION_DIR}"`);
+    }
+    mkdirSync(EXTENSION_DIR, { recursive: true });
+    execSync(`unzip -o "${ZIP_PATH}" -d "${EXTENSION_DIR}"`, { stdio: 'pipe' });
+    unlinkSync(ZIP_PATH);
+
+    // Verify extraction
+    const files = readdirSync(EXTENSION_DIR);
+    if (!files.includes('manifest.json')) {
+      // Check if files are in a subdirectory
+      const subdirs = files.filter(f => {
+        try { return readdirSync(join(EXTENSION_DIR, f)).includes('manifest.json'); } catch { return false; }
+      });
+      if (subdirs.length > 0) {
+        // Move files up from subdirectory
+        const subdir = join(EXTENSION_DIR, subdirs[0]);
+        execSync(`mv "${subdir}"/* "${EXTENSION_DIR}"/`);
+        execSync(`rmdir "${subdir}"`);
+      } else {
+        console.error('Error: Extension extraction failed - manifest.json not found.');
+        process.exit(1);
+      }
+    }
+  }
+
+  console.log(`\nSetup complete!${isGlobal ? ' (global)' : ''}`);
+  console.log(`  Extension path: ${EXTENSION_DIR}`);
+  console.log('  SDK: browse-agent-sdk\n');
+  if (!isGlobal) {
+    console.log('Add .browse-agent/ to your .gitignore.');
   }
 }
 
-console.log('\nSetup complete!');
-console.log(`  Extension path: ${EXTENSION_DIR}`);
-console.log('  SDK: browse-agent-sdk (npm)\n');
-console.log('Add .browse-agent/ to your .gitignore.');
+// CLI entry point
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
+  const hasGlobalFlag = process.argv.includes('--global');
+  await setup({ global: hasGlobalFlag ? true : undefined });
+}

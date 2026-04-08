@@ -33,5 +33,5 @@ export async function screenshot(agent, mode = 'visible', options = {}) {
       result = await agent.screenshotVisible(options);
       break;
   }
-  return result.data;
+  return result;
 }

@@ -9,10 +9,10 @@
  * CLI:
  *   node connect.mjs                       # check connection status
  */
-import { BrowserAgent } from 'browse-agent-sdk';
-import { loadSession, resolveOptions } from './config.mjs';
+import { loadSession, resolveOptions, importSdk } from './config.mjs';
 
 export async function connect(options = {}) {
+  const { BrowserAgent } = await importSdk();
   const session = loadSession();
   const port   = options.port   ?? session?.port   ?? resolveOptions().port;
   const secret = options.secret ?? session?.secret ?? resolveOptions().secret;

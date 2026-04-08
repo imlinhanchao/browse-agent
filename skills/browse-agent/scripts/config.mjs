@@ -2,16 +2,32 @@
  * Shared configuration and utilities for browse-agent scripts.
  *
  * Environment variables:
- *   BROWSER            - chrome | chromium | edge | brave (default: chrome)
- *   HEADLESS           - true | false (default: false)
- *   USE_USER_PROFILE   - true | false (default: false)
- *   CHROME_PATH        - Custom browser executable path
- *   BROWSE_AGENT_PORT  - WebSocket port (default: 9315)
- *   CONNECTION_TIMEOUT - Wait for extension connection in ms (default: 30000)
+ *   BROWSER              - chrome | chromium | edge | brave (default: chrome)
+ *   HEADLESS             - true | false (default: false)
+ *   USE_USER_PROFILE     - true | false (default: false)
+ *   CHROME_PATH          - Custom browser executable path
+ *   BROWSE_AGENT_PORT    - WebSocket port (default: 9315)
+ *   CONNECTION_TIMEOUT   - Wait for extension connection in ms (default: 30000)
+ *   BROWSE_AGENT_GLOBAL  - true to use global installation (~/.browse-agent)
  */
 import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, rmSync } from 'fs';
 import { join } from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
+
+// ── Skill directory detection ─────────────────────────────────────────────────
+
+const SKILL_DIR = join(fileURLToPath(import.meta.url), '..', '..');
+
+/**
+ * Check whether the skill directory is inside process.cwd() (or its subdirectories).
+ * Used to determine default setup mode: local if skill is in cwd, global otherwise.
+ */
+export function isSkillInCwd() {
+  const cwd = join(process.cwd());
+  const resolved = join(SKILL_DIR);
+  return resolved.startsWith(cwd + '/') || resolved === cwd;
+}
 
 // ── Browser executable paths ──────────────────────────────────────────────────
 
@@ -52,6 +68,45 @@ export const BROWSER_PATHS = {
 
 const HOME = process.env.HOME || process.env.USERPROFILE;
 
+// ── Base directory resolution ─────────────────────────────────────────────────
+
+export const GLOBAL_BASE_DIR = join(HOME, '.browse-agent');
+export const LOCAL_BASE_DIR = join(process.cwd(), '.browse-agent');
+
+export function isGlobalMode() {
+  if (process.env.BROWSE_AGENT_GLOBAL === 'true') return true;
+  if (existsSync(join(LOCAL_BASE_DIR, 'extension', 'manifest.json'))) return false;
+  if (existsSync(join(GLOBAL_BASE_DIR, 'extension', 'manifest.json'))) return true;
+  return false;
+}
+
+export function getBaseDir(global) {
+  if (global !== undefined) return global ? GLOBAL_BASE_DIR : LOCAL_BASE_DIR;
+  return isGlobalMode() ? GLOBAL_BASE_DIR : LOCAL_BASE_DIR;
+}
+
+// ── SDK resolution ────────────────────────────────────────────────────────────
+
+export function isSdkInstalled(global) {
+  if (global) {
+    return existsSync(join(GLOBAL_BASE_DIR, 'node_modules', 'browse-agent-sdk'));
+  }
+  return existsSync(join(process.cwd(), 'node_modules', 'browse-agent-sdk'));
+}
+
+export async function importSdk() {
+  try {
+    return await import('browse-agent-sdk');
+  } catch {}
+  const globalSdk = join(GLOBAL_BASE_DIR, 'node_modules', 'browse-agent-sdk');
+  if (existsSync(globalSdk)) {
+    const pkg = JSON.parse(readFileSync(join(globalSdk, 'package.json'), 'utf8'));
+    const entry = pkg.module || pkg.main || 'index.js';
+    return await import(pathToFileURL(join(globalSdk, entry)).href);
+  }
+  throw new Error('browse-agent-sdk not found. Run "setup" first.');
+}
+
 export const DEFAULT_PROFILE_PATHS = {
   chrome: {
     darwin: join(HOME, 'Library', 'Application Support', 'Google', 'Chrome'),
@@ -77,21 +132,21 @@ export const DEFAULT_PROFILE_PATHS = {
 
 // ── State file for cross-script communication ─────────────────────────────────
 
-const BASE_DIR = join(process.cwd(), '.browse-agent');
-const STATE_FILE = join(BASE_DIR, '_session.json');
-
 export function saveSession(data) {
-  mkdirSync(BASE_DIR, { recursive: true });
-  writeFileSync(STATE_FILE, JSON.stringify(data, null, 2));
+  const baseDir = getBaseDir();
+  mkdirSync(baseDir, { recursive: true });
+  writeFileSync(join(baseDir, '_session.json'), JSON.stringify(data, null, 2));
 }
 
 export function loadSession() {
-  if (!existsSync(STATE_FILE)) return null;
-  return JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+  const stateFile = join(getBaseDir(), '_session.json');
+  if (!existsSync(stateFile)) return null;
+  return JSON.parse(readFileSync(stateFile, 'utf8'));
 }
 
 export function clearSession() {
-  if (existsSync(STATE_FILE)) rmSync(STATE_FILE);
+  const stateFile = join(getBaseDir(), '_session.json');
+  if (existsSync(stateFile)) rmSync(stateFile);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -126,14 +181,15 @@ export function getProfileDir(browser, useUserProfile) {
     console.error(`[browse-agent] Default ${browser} profile not found at ${profilePath}`);
     console.error('[browse-agent] Falling back to isolated profile.');
   }
-  const dir = join(BASE_DIR, 'chrome-profile');
+  const dir = join(getBaseDir(), 'chrome-profile');
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
 export function patchExtension(port, secret) {
-  const extensionSrc = join(BASE_DIR, 'extension');
-  const extensionWork = join(BASE_DIR, '_ext_work');
+  const baseDir = getBaseDir();
+  const extensionSrc = join(baseDir, 'extension');
+  const extensionWork = join(baseDir, '_ext_work');
 
   if (existsSync(extensionWork)) rmSync(extensionWork, { recursive: true });
   cpSync(extensionSrc, extensionWork, { recursive: true });
@@ -149,7 +205,7 @@ export function patchExtension(port, secret) {
 }
 
 export function cleanExtensionWork() {
-  const extensionWork = join(BASE_DIR, '_ext_work');
+  const extensionWork = join(getBaseDir(), '_ext_work');
   if (existsSync(extensionWork)) rmSync(extensionWork, { recursive: true });
 }
 

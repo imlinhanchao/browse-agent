@@ -9,6 +9,6 @@
  * Returns: { success }
  */
 export async function injectScript(agent, code, options = {}) {
-  const result = await agent.injectScript(code, options);
-  return result.data;
+  const result = await agent.injectScript(code, options.tabId);
+  return result;
 }
