@@ -111,6 +111,34 @@ await agent.stop();
 node examples/basic-usage.mjs
 ```
 
+## 在支持 Skills 的 AI 助手中使用 Browse Agent Skill
+
+你可以在任意支持读取当前工作区本地 Skills 的 AI 助手中调用 `skills/browse-agent`，让 Agent 访问网页、提取数据、查询 DOM 或截图。
+
+1. 在当前仓库打开你的 AI 助手或导入 `skills/browse-agent` 作为 Skill 模块
+   - 确保助手支持本地 Skill（例如 AgentGPT、LangSmith、LangAgent 等）
+   - 或确保当前工作区是本项目，这样助手才能发现本地 Skill。
+
+2. 触发 Skill 可以用两种方式（具体取决于助手界面）：
+
+  - Slash 命令方式：`/browse-agent <你的任务描述>`
+  - 自然语言方式：直接描述网页浏览任务（例如“访问某个 URL 并提取正文”）
+
+  示例提示词：
+
+  - `/browse-agent 访问 https://example.com 并返回标题和正文`
+  - `打开 https://news.ycombinator.com，提取前 10 条标题`
+  - `对 https://example.com 做整页截图并保存`
+
+3. 查看返回结果
+
+  Skill 会按你的任务返回结构化结果（例如 `title`、`url`、`content`、截图信息、DOM 查询结果等）。
+
+> [!NOTE] 初始化
+> 首次使用时，Skill 流程会自动完成依赖准备。  
+> 如果你的环境阻止该步骤或自动初始化失败，再手动执行以下兜底命令：`node skills/browse-agent/scripts/setup.mjs`  
+> 该命令会安装 `browse-agent-sdk`，并将扩展下载到 `.browse-agent/extension/`。  
+
 ## API 参考
 
 ### `BrowserAgent(options)`

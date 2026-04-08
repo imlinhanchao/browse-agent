@@ -140,6 +140,34 @@ await agent.stop();
 node examples/basic-usage.mjs
 ```
 
+## Use Browse Agent Skill (Any Skill-Enabled Agent)
+
+You can call the built-in skill at `skills/browse-agent` from any AI assistant that supports loading local Skills in the current workspace.
+
+1. Open your AI assistant in this repository, or import `skills/browse-agent` as a Skill module.
+  - Make sure your assistant supports local Skills (for example, AgentGPT, LangSmith, LangAgent, etc.).
+  - Or keep the current workspace at this repository so the assistant can discover the local skill.
+
+2. Trigger the skill in either way (depends on your assistant UI):
+
+  - Slash command style: `/browse-agent <your task description>`
+  - Natural language: describe a web browsing task directly (for example: "visit a URL and extract page text")
+
+  Example prompts:
+
+  - `/browse-agent Visit https://example.com and return title + main text`
+  - `Open https://news.ycombinator.com and list the first 10 post titles`
+  - `Take a full-page screenshot of https://example.com and save it`
+
+3. Review the returned output.
+
+  The skill returns structured data for your task (for example `title`, `url`, `content`, screenshot metadata, or DOM query results).
+
+> [!NOTE] Initialization
+> On first use, the skill workflow should prepare dependencies automatically.
+> If your environment blocks that step or initialization fails, run this fallback manually: `node skills/browse-agent/scripts/setup.mjs`
+> This command installs `browse-agent-sdk` and downloads the extension to `.browse-agent/extension/`.
+
 ## API Reference
 
 ### `BrowserAgent(options)`
