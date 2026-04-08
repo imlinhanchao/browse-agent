@@ -23,7 +23,7 @@ export async function launchBrowser(options = {}) {
   const { BrowserAgent } = await importSdk();
   const opts = resolveOptions(options);
   const extensionWork = patchExtension(opts.port, opts.secret);
-  const profileDir = getProfileDir(opts.browser, opts.useUserProfile);
+  const profileDir = getProfileDir(opts.browser, opts.useUserProfile ?? true);
 
   const agent = new BrowserAgent({ secret: opts.secret, port: opts.port });
   await agent.start();
