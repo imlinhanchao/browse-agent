@@ -140,7 +140,7 @@ await agent.stop();
 node examples/basic-usage.mjs
 ```
 
-## Use Browse Agent Skill (Any Skill-Enabled Agent)
+## Browse Agent Skill
 
 You can call the built-in skill at `skills/browse-agent` from any AI assistant that supports loading local Skills in the current workspace.
 

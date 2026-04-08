@@ -111,7 +111,7 @@ await agent.stop();
 node examples/basic-usage.mjs
 ```
 
-## 在支持 Skills 的 AI 助手中使用 Browse Agent Skill
+## Browse Agent Skill
 
 你可以在任意支持读取当前工作区本地 Skills 的 AI 助手中调用 `skills/browse-agent`，让 Agent 访问网页、提取数据、查询 DOM 或截图。
 
