@@ -163,7 +163,7 @@ You can call the built-in skill at `skills/browse-agent` from any AI assistant t
 
   The skill returns structured data for your task (for example `title`, `url`, `content`, screenshot metadata, or DOM query results).
 
-> [!NOTE] Initialization
+> [!NOTE] Initialization  
 > On first use, the skill workflow should prepare dependencies automatically.
 > If your environment blocks that step or initialization fails, run this fallback manually: `node skills/browse-agent/scripts/setup.mjs`
 > This command installs `browse-agent-sdk` and downloads the extension to `.browse-agent/extension/`.

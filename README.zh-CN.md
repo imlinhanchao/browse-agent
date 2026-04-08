@@ -134,7 +134,7 @@ node examples/basic-usage.mjs
 
   Skill 会按你的任务返回结构化结果（例如 `title`、`url`、`content`、截图信息、DOM 查询结果等）。
 
-> [!NOTE] 初始化
+> [!NOTE] 初始化  
 > 首次使用时，Skill 流程会自动完成依赖准备。  
 > 如果你的环境阻止该步骤或自动初始化失败，再手动执行以下兜底命令：`node skills/browse-agent/scripts/setup.mjs`  
 > 该命令会安装 `browse-agent-sdk`，并将扩展下载到 `.browse-agent/extension/`。  
