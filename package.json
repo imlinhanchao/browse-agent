@@ -6,16 +6,27 @@
   "workspaces": [
     "packages/shared",
     "packages/extension",
-    "packages/sdk"
+    "packages/sdk",
+    "packages/cli"
   ],
   "scripts": {
-    "build": "npm run build:shared && npm run build:sdk && npm run build:extension",
+    "build": "npm run build:shared && npm run build:sdk && npm run build:cli && npm run build:extension",
     "build:shared": "npm run build -w packages/shared",
     "build:sdk": "npm run build -w packages/sdk",
+    "build:cli": "npm run build -w packages/cli",
     "build:extension": "npm run build -w packages/extension",
     "dev:extension": "npm run dev -w packages/extension",
     "debug": "node examples/debug-server.mjs",
     "clean": "rm -rf packages/*/dist"
+  },
+  "bugs": {
+    "url": "https://github.com/imlinhanchao/browse-agent/issues"
+  },
+  "homepage": "https://github.com/imlinhanchao/browse-agent#readme",
+  "author": {
+    "name": "Hancel.Lin",
+    "email": "imlinhanchao@foxmail.com",
+    "url": "https://github.com/imlinhanchao"
   },
   "license": "MIT",
   "dependencies": {

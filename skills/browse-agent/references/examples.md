@@ -6,79 +6,79 @@
 
 ```bash
 # 1. Launch browser
-node skills/browse-agent/cli.mjs launch 2>/dev/null
+browse-agent launch
 
 # 2. Navigate to page
-node skills/browse-agent/cli.mjs navigate "https://example.com" 2>/dev/null
+browse-agent navigate "https://example.com"
 
 # 3. Read content — decide next step based on output
-node skills/browse-agent/cli.mjs get-content --format text 2>/dev/null
+browse-agent get-content --format text
 
 # 4. Done — close browser
-node skills/browse-agent/cli.mjs close 2>/dev/null
+browse-agent close
 ```
 
 ### Find Specific Content on a Page
 
 ```bash
-node skills/browse-agent/cli.mjs launch 2>/dev/null
-node skills/browse-agent/cli.mjs navigate "https://news.ycombinator.com" 2>/dev/null
+browse-agent launch
+browse-agent navigate "https://news.ycombinator.com"
 
 # First, read the page to understand structure
-node skills/browse-agent/cli.mjs get-content --format text 2>/dev/null
+browse-agent get-content --format text
 
 # Then query specific elements based on what you found
-node skills/browse-agent/cli.mjs get-dom ".titleline > a" --property innerText --all 2>/dev/null
+browse-agent get-dom ".titleline > a" --property innerText --all
 
-node skills/browse-agent/cli.mjs close 2>/dev/null
+browse-agent close
 ```
 
 ### Screenshot and Inspect
 
 ```bash
-node skills/browse-agent/cli.mjs launch 2>/dev/null
-node skills/browse-agent/cli.mjs navigate "https://example.com" 2>/dev/null
+browse-agent launch
+browse-agent navigate "https://example.com"
 
 # Take a screenshot to see the page visually
-node skills/browse-agent/cli.mjs screenshot visible 2>/dev/null
+browse-agent screenshot visible
 
 # Run JS to count elements, check state, etc.
-node skills/browse-agent/cli.mjs evaluate "document.querySelectorAll('a').length" 2>/dev/null
+browse-agent evaluate "document.querySelectorAll('a').length"
 
-node skills/browse-agent/cli.mjs close 2>/dev/null
+browse-agent close
 ```
 
 ### Multi-Page Exploration
 
 ```bash
-node skills/browse-agent/cli.mjs launch 2>/dev/null
+browse-agent launch
 
 # Visit first page
-node skills/browse-agent/cli.mjs navigate "https://example.com" 2>/dev/null
-node skills/browse-agent/cli.mjs get-content --format text 2>/dev/null
+browse-agent navigate "https://example.com"
+browse-agent get-content --format text
 
 # Visit second page (based on what you found)
-node skills/browse-agent/cli.mjs navigate "https://example.org" 2>/dev/null
-node skills/browse-agent/cli.mjs get-content --format text 2>/dev/null
+browse-agent navigate "https://example.org"
+browse-agent get-content --format text
 
 # Manage tabs
-node skills/browse-agent/cli.mjs tabs list 2>/dev/null
-node skills/browse-agent/cli.mjs tabs close 123 2>/dev/null
+browse-agent tabs list
+browse-agent tabs close 123
 
-node skills/browse-agent/cli.mjs close 2>/dev/null
+browse-agent close
 ```
 
 ### Use Logged-in Browser Profile
 
 ```bash
 # Launch with user's default browser profile (preserves cookies/sessions)
-node skills/browse-agent/cli.mjs launch --browser chrome 2>/dev/null
+browse-agent launch --browser chrome
 # ⚠ Close all Chrome windows first!
 
-USE_USER_PROFILE=true node skills/browse-agent/cli.mjs launch 2>/dev/null
-node skills/browse-agent/cli.mjs navigate "https://github.com/notifications" 2>/dev/null
-node skills/browse-agent/cli.mjs get-content --format text 2>/dev/null
-node skills/browse-agent/cli.mjs close 2>/dev/null
+USE_USER_PROFILE=true browse-agent launch
+browse-agent navigate "https://github.com/notifications"
+browse-agent get-content --format text
+browse-agent close
 ```
 
 ## One-Shot Script Examples
@@ -86,7 +86,7 @@ node skills/browse-agent/cli.mjs close 2>/dev/null
 ### Extract Text from a Page
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 
 await browse(async (agent) => {
   const { tabId } = await agent.navigate('https://example.com');
@@ -98,7 +98,7 @@ await browse(async (agent) => {
 ### Query DOM Elements
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 
 await browse(async (agent) => {
   const { tabId } = await agent.navigate('https://news.ycombinator.com');
@@ -114,7 +114,7 @@ await browse(async (agent) => {
 ### Run JavaScript on the Page
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 
 await browse(async (agent) => {
   const { tabId } = await agent.navigate('https://example.com');
@@ -126,7 +126,7 @@ await browse(async (agent) => {
 ### Take a Screenshot
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 import { writeFileSync } from 'fs';
 
 await browse(async (agent) => {
@@ -140,7 +140,7 @@ await browse(async (agent) => {
 ### Multi-Page Data Collection
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 
 await browse(async (agent) => {
   const urls = ['https://example.com', 'https://example.org'];
@@ -160,7 +160,7 @@ await browse(async (agent) => {
 ### Access Logged-in Content (User Profile)
 
 ```javascript
-import { browse } from './skills/browse-agent/scripts/browse.mjs';
+import { browse } from 'browse-agent-cli/script';
 
 await browse(async (agent) => {
   const { tabId } = await agent.navigate('https://github.com/notifications');
@@ -173,13 +173,13 @@ await browse(async (agent) => {
 
 ```bash
 # Use user's default Chrome profile (keeps login sessions)
-USE_USER_PROFILE=true node _browse_task.mjs 2>/dev/null
+USE_USER_PROFILE=true node _browse_task.mjs
 
 # Use Edge with user profile
-BROWSER=edge USE_USER_PROFILE=true node _browse_task.mjs 2>/dev/null
+BROWSER=edge USE_USER_PROFILE=true node _browse_task.mjs
 
 # Custom executable path
-CHROME_PATH=/path/to/browser node _browse_task.mjs 2>/dev/null
+CHROME_PATH=/path/to/browser node _browse_task.mjs
 ```
 
 ### Options via Code

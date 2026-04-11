@@ -1,0 +1,13 @@
+export { browse } from './scripts/browse';
+export { launchBrowser } from './scripts/launch-browser';
+export { connect } from './scripts/connect';
+export { closeBrowser } from './scripts/close-browser';
+export { clear } from './scripts/clear';
+export { navigate } from './scripts/navigate';
+export { getContent } from './scripts/get-content';
+export { getDOM } from './scripts/get-dom';
+export { evaluate } from './scripts/evaluate';
+export { injectScript } from './scripts/inject-script';
+export { injectCSS } from './scripts/inject-css';
+export { screenshot } from './scripts/screenshot';
+export { listTabs, closeTab, activateTab } from './scripts/tabs';

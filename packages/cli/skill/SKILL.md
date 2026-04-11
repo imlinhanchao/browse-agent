@@ -6,7 +6,7 @@ argument-hint: "URL to visit, or describe what data to extract from the web"
 
 # Browse Agent — Web Browsing & Data Extraction
 
-Control a real Chrome browser to visit web pages, extract content, take screenshots, query DOM elements, and run JavaScript — all via `browse-agent-sdk`.
+Control a real Chrome browser to visit web pages, extract content, take screenshots, query DOM elements, and run JavaScript.
 
 ## Prerequisites
 
@@ -16,11 +16,10 @@ Control a real Chrome browser to visit web pages, extract content, take screensh
 ## Setup (One-Time)
 
 ```bash
-npm install -g browse-agent-cli
 browse-agent setup
 ```
 
-Auto-detects local vs global mode. Use `--global` to force global installation in `~/.browse-agent/`. The setup checks existing state — if already installed, it exits immediately.
+Auto-detects local vs global mode. The setup checks existing state — if already installed, it exits immediately.
 
 ## Usage Procedure — Step-by-Step (Recommended)
 

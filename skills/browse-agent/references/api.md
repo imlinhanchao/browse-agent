@@ -21,7 +21,7 @@ All methods return direct result objects (for example `{ result }`, `{ content, 
 
 ## Modular Scripts
 
-All functionality is also available as individual modules for fine-grained control. Import from `./skills/browse-agent/scripts/`.
+All functionality is also available as individual modules for fine-grained control. Import from `browse-agent-cli/script`.
 
 ### Lifecycle Scripts
 
@@ -48,10 +48,10 @@ All functionality is also available as individual modules for fine-grained contr
 ### Step-by-Step Example (Modular)
 
 ```javascript
-import { launchBrowser } from './skills/browse-agent/scripts/launch-browser.mjs';
-import { navigate } from './skills/browse-agent/scripts/navigate.mjs';
-import { getContent } from './skills/browse-agent/scripts/get-content.mjs';
-import { closeBrowser } from './skills/browse-agent/scripts/close-browser.mjs';
+import { launchBrowser } from 'browse-agent-cli/script';
+import { navigate } from 'browse-agent-cli/script';
+import { getContent } from 'browse-agent-cli/script';
+import { closeBrowser } from 'browse-agent-cli/script';
 
 // 1. Launch
 const session = await launchBrowser({ browser: 'chrome' });
@@ -72,7 +72,7 @@ try {
 All modules are also re-exported from [browse.mjs](../scripts/browse.mjs) for convenience:
 
 ```javascript
-import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from './skills/browse-agent/scripts/browse.mjs';
+import { launchBrowser, navigate, getContent, screenshot, closeBrowser } from 'browse-agent-cli/script';
 ```
 
 ## Browse Options

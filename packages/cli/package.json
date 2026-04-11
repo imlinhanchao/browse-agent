@@ -1,0 +1,51 @@
+{
+  "name": "browse-agent-cli",
+  "version": "0.0.4",
+  "type": "module",
+  "description": "TypeScript CLI for browse-agent",
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./script": {
+      "types": "./dist/script.d.ts",
+      "import": "./dist/script.js"
+    }
+  },
+  "bin": {
+    "browse-agent": "./dist/cli.js"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "skills/**/*"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "clean": "rm -rf dist",
+    "sync-skill": "mkdir -p skills/references/ && cp -r skill/references/* skills/references/ && cp -r skill/SKILL.md skills/",
+    "prepublishOnly": "npm run clean && npm run build && npm run sync-skill"
+  },
+  "dependencies": {
+    "browse-agent-sdk": "^0.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "tsdown": "^0.13.3",
+    "typescript": "^5.4.0"
+  },
+  "bugs": {
+    "url": "https://github.com/imlinhanchao/browse-agent/issues"
+  },
+  "homepage": "https://github.com/imlinhanchao/browse-agent#readme",
+  "author": {
+    "name": "Hancel.Lin",
+    "email": "imlinhanchao@foxmail.com",
+    "url": "https://github.com/imlinhanchao"
+  },
+  "keywords": ["chrome", "browser", "automation", "websocket", "extension"],
+  "license": "MIT"
+}

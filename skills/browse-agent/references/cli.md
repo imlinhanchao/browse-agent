@@ -3,7 +3,7 @@
 The [CLI](../cli.mjs) provides a command-line interface to all browse-agent functionality:
 
 ```bash
-node skills/browse-agent/cli.mjs <command> [options]
+browse-agent <command> [options]
 ```
 
 ## Lifecycle Commands
@@ -82,14 +82,7 @@ Remove the browse-agent installation with the [clear script](../scripts/clear.mj
 
 ```bash
 # Remove local installation (project .browse-agent/ + uninstall SDK)
-node skills/browse-agent/scripts/clear.mjs
-
-# Remove global installation (~/.browse-agent/)
-node skills/browse-agent/scripts/clear.mjs --global
-
-# Or via CLI
-node skills/browse-agent/cli.mjs clear
-node skills/browse-agent/cli.mjs clear --global
+browse-agent clear
 ```
 
 The clear script will:
