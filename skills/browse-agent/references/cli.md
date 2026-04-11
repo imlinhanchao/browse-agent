@@ -16,6 +16,7 @@ browse-agent setup --global
 # Launch browser
 browse-agent launch
 browse-agent launch --browser edge --headless
+browse-agent launch --server-only
 
 # Check connection
 browse-agent connect
@@ -67,6 +68,7 @@ browse-agent tabs close 123
 | `--global` | setup, clear | Use global installation (`~/.browse-agent/`) |
 | `--browser <name>` | launch | Browser: `chrome` \| `chromium` \| `edge` \| `brave` |
 | `--headless` | launch | Run in headless mode |
+| `--server-only` | launch | Start service only, skip browser launch |
 | `--port <number>` | launch, connect, feature cmds | WebSocket port (default: 9315) |
 | `--tabId <id>` | all feature cmds | Target a specific tab (ID from `navigate` or `tabs list`) |
 | `--format <type>` | get-content, screenshot | Content format (`text`/`html`) or screenshot format (`png`/`jpeg`) |

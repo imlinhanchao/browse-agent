@@ -29,6 +29,10 @@ function parseArgs(argv: string[]): ParsedArgs {
       flags.headless = true;
       continue;
     }
+    if (arg === '--server-only') {
+      flags['server-only'] = true;
+      continue;
+    }
     if (arg === '--all') {
       flags.all = true;
       continue;
@@ -82,6 +86,7 @@ Feature commands (require launch first):
 Options:
   --browser <name>       Browser: chrome | chromium | edge | brave (default: chrome)
   --headless             Run in headless mode
+  --server-only          Start background service only, skip browser launch
   --port <number>        WebSocket port for browser-agent (default: 9315)
   --servicePort <number> Local service port (default: 9316)
   --tabId <id>           Target tab ID (from navigate or tabs list output)
@@ -95,6 +100,7 @@ Options:
 Examples:
   browse-agent setup
   browse-agent launch --browser edge --headless
+  browse-agent launch --server-only
   browse-agent navigate https://example.com
   browse-agent get-content --format text
   browse-agent get-dom "h1" --property innerText
@@ -296,6 +302,13 @@ try {
     case 'launch': {
       const service = await ensureServiceRunning(flags);
       const servicePort = service.servicePort;
+      const serverOnly = flags['server-only'] === true;
+
+      if (serverOnly) {
+        const status = await requestService<Record<string, unknown>>(servicePort, '/status', 'GET');
+        console.log(JSON.stringify({ servicePort, mode: 'server-only', ...status }, null, 2));
+        break;
+      }
 
       if (!service.newlyStarted) {
         const status = await requestService<Record<string, unknown>>(servicePort, '/status', 'GET');

@@ -36,6 +36,9 @@ browse-agent setup
 # Launch browser session
 browse-agent launch
 
+# Start only background service (do not launch browser)
+browse-agent launch --server-only
+
 # Navigate and extract
 browse-agent navigate "https://example.com"
 browse-agent get-content --format text
@@ -109,6 +112,7 @@ import {
 
 - `--browser <name>`: `chrome | chromium | edge | brave`
 - `--headless`
+- `--server-only`
 - `--port <number>`
 - `--servicePort <number>`
 - `--timeout <ms>`
