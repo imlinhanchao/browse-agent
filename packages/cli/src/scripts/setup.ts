@@ -1,79 +1,111 @@
-import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BASE_DIR } from './config';
+import { DEFAULT_PROFILE_PATHS, findBrowser, resolveOptions } from './config';
+
+const BROWSE_AGENT_WEBSTORE_URL =
+  'https://chromewebstore.google.com/detail/browse-agent/amfbnjpgfgappenkkklkogngmoeofeae?authuser=0&hl=zh-CN';
+const BROWSE_AGENT_EXTENSION_ID = 'amfbnjpgfgappenkkklkogngmoeofeae';
+const INSTALL_WAIT_TIMEOUT_MS = 5 * 60 * 1000;
+const INSTALL_POLL_INTERVAL_MS = 1500;
+
+function openUrlInSelectedBrowser(url: string): void {
+  const opts = resolveOptions();
+  const browserExe = findBrowser(opts.browser);
+  const proc = spawn(browserExe, ['--new-window', url], {
+    stdio: 'ignore',
+    detached: true,
+  });
+
+  proc.on('error', (err) => {
+    throw new Error(`${opts.browser} launch failed: ${err.message}`);
+  });
+
+  proc.unref();
+}
+
+function listProfileDirs(userDataDir: string): string[] {
+  const candidates = ['Default'];
+  try {
+    for (const name of readdirSync(userDataDir)) {
+      if (name.startsWith('Profile ')) candidates.push(name);
+    }
+  } catch {
+    // Ignore and fall back to Default only.
+  }
+  return [...new Set(candidates)].map((name) => join(userDataDir, name));
+}
+
+function isExtensionInstalledInBrowser(browser: 'chrome' | 'chromium' | 'edge' | 'brave'): boolean {
+  const userDataDir = DEFAULT_PROFILE_PATHS[browser]?.[process.platform];
+  if (!userDataDir || !existsSync(userDataDir)) return false;
+
+  for (const profileDir of listProfileDirs(userDataDir)) {
+    const extDir = join(profileDir, 'Extensions', BROWSE_AGENT_EXTENSION_ID);
+    if (!existsSync(extDir)) continue;
+
+    try {
+      const versions = readdirSync(extDir);
+      if (versions.length > 0) return true;
+    } catch {
+      // Continue scanning other profiles.
+    }
+  }
+
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForExtensionInstall(
+  browser: 'chrome' | 'chromium' | 'edge' | 'brave',
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (isExtensionInstalledInBrowser(browser)) return true;
+    await sleep(INSTALL_POLL_INTERVAL_MS);
+  }
+
+  return false;
+}
 
 export async function setup(): Promise<void> {
-  const baseDir = BASE_DIR;
-  const extensionDir = join(baseDir, 'extension');
-  const zipPath = join(baseDir, 'extension.zip');
+  const browser = resolveOptions().browser;
+  const installed = isExtensionInstalledInBrowser(browser);
 
-  const extensionInstalled = existsSync(join(extensionDir, 'manifest.json'));
-
-  if (extensionInstalled) {
-    console.log('browse-agent is already set up.');
-    console.log(`  Extension path: ${extensionDir}`);
-    console.log('  Extension: installed\n');
+  if (installed) {
+    console.log(`Browse Agent extension is already installed in ${browser}.`);
     return;
   }
 
-  console.log('Setting up browse-agent...\n');
+  console.log(`Opening Chrome Web Store install page in ${browser}...`);
 
-  mkdirSync(baseDir, { recursive: true });
+  try {
+    openUrlInSelectedBrowser(BROWSE_AGENT_WEBSTORE_URL);
+    console.log('Please click "Add to Chrome" to install Browse Agent.');
+    console.log('Browser extensions cannot be silently installed from CLI without enterprise policy.');
+    console.log(`If it did not open automatically, visit:\n${BROWSE_AGENT_WEBSTORE_URL}\n`);
 
-  if (extensionInstalled) {
-    console.log('\n[1/2] Downloading Chrome extension from latest release...');
-    console.log('  Skipped: extension is already installed.');
-    console.log('\n[2/2] Extracting extension...');
-    console.log('  Skipped: extension is already installed.');
-  } else {
-    console.log('\n[1/2] Downloading Chrome extension from latest release...');
-    const releaseApi = 'https://api.github.com/repos/imlinhanchao/browse-agent/releases/latest';
-    const releaseJson = execSync(`curl -s "${releaseApi}"`).toString();
-    const releaseInfo = JSON.parse(releaseJson) as {
-      assets?: Array<{ name: string; size: number; browser_download_url: string }>;
-    };
-    const asset = releaseInfo.assets?.find((item) => item.name.endsWith('.zip'));
-
-    if (!asset) {
-      console.error('Error: No extension zip found in latest release.');
-      console.error('Visit https://github.com/imlinhanchao/browse-agent/releases to check.');
-      process.exit(1);
+    console.log('Waiting for extension installation...');
+    const installedAfterOpen = await waitForExtensionInstall(browser, INSTALL_WAIT_TIMEOUT_MS);
+    if (installedAfterOpen) {
+      console.log(`Browse Agent extension installation detected in ${browser}.`);
+      return;
     }
 
-    console.log(`  Downloading ${asset.name} (${(asset.size / 1024).toFixed(1)} KB)...`);
-    execSync(`curl -sL -o "${zipPath}" "${asset.browser_download_url}"`);
-
-    console.log('\n[2/2] Extracting extension...');
-    if (existsSync(extensionDir)) {
-      execSync(`rm -rf "${extensionDir}"`);
-    }
-    mkdirSync(extensionDir, { recursive: true });
-    execSync(`unzip -o "${zipPath}" -d "${extensionDir}"`, { stdio: 'pipe' });
-    unlinkSync(zipPath);
-
-    const files = readdirSync(extensionDir);
-    if (!files.includes('manifest.json')) {
-      const subdirs = files.filter((file) => {
-        try {
-          return readdirSync(join(extensionDir, file)).includes('manifest.json');
-        } catch {
-          return false;
-        }
-      });
-
-      if (subdirs.length > 0) {
-        const subdir = join(extensionDir, subdirs[0]);
-        execSync(`mv "${subdir}"/* "${extensionDir}"/`);
-        execSync(`rmdir "${subdir}"`);
-      } else {
-        console.error('Error: Extension extraction failed - manifest.json not found.');
-        process.exit(1);
-      }
-    }
+    console.error(
+      `Timed out after ${Math.round(INSTALL_WAIT_TIMEOUT_MS / 1000)}s waiting for extension install in ${browser}.`,
+    );
+    console.error('Please finish installation in browser, then run "browse-agent setup" again.');
+    process.exit(1);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Failed to open browser automatically: ${msg}`);
+    console.error(`Please open manually:\n${BROWSE_AGENT_WEBSTORE_URL}\n`);
+    process.exit(1);
   }
-
-  console.log('\nSetup complete!');
-  console.log(`  Extension path: ${extensionDir}`);
-  console.log('  Extension: installed\n');
 }

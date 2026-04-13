@@ -32,6 +32,11 @@ interface ResolveOptionsOutput {
 
 const CLI_RUNTIME_DIR = dirname(fileURLToPath(import.meta.url));
 const HOME = process.env.HOME || process.env.USERPROFILE || '';
+const DEFAULT_BASE_DIR = HOME ? join(HOME, '.browse-agent') : join(process.cwd(), '.browse-agent');
+
+function unique(paths: string[]): string[] {
+  return [...new Set(paths.filter(Boolean))];
+}
 
 export const BROWSER_PATHS: Record<BrowserName, Record<NodeJS.Platform, string[]>> = {
   chrome: {
@@ -98,8 +103,13 @@ export const BROWSER_PATHS: Record<BrowserName, Record<NodeJS.Platform, string[]
   },
 };
 
-export const BASE_DIR = join(CLI_RUNTIME_DIR, '.browse-agent');
+export const BASE_DIR = process.env.BROWSE_AGENT_HOME || DEFAULT_BASE_DIR;
 export const DEFAULT_SERVICE_PORT = Number(process.env.BROWSE_AGENT_SERVICE_PORT || 9316);
+export const LEGACY_BASE_DIRS = unique([
+  join(CLI_RUNTIME_DIR, '.browse-agent'),
+  join(dirname(CLI_RUNTIME_DIR), '.browse-agent'),
+  join(process.cwd(), '.browse-agent'),
+]).filter((dir) => dir !== BASE_DIR);
 
 export async function importSdk(): Promise<typeof import('browse-agent-sdk')> {
   try {
@@ -272,7 +282,12 @@ export function getProfileDir(browser: BrowserName, useUserProfile: boolean): st
 }
 
 export function patchExtension(port: number, secret: string): string {
-  const extensionSrc = join(BASE_DIR, 'extension');
+  const legacyWithExtension = LEGACY_BASE_DIRS.find((dir) =>
+    existsSync(join(dir, 'extension', 'manifest.json')),
+  );
+  const extensionSrc = legacyWithExtension
+    ? join(legacyWithExtension, 'extension')
+    : join(BASE_DIR, 'extension');
   const extensionWork = join(BASE_DIR, '_ext_work');
 
   if (!existsSync(join(extensionSrc, 'manifest.json'))) {
@@ -306,7 +321,7 @@ export function resolveOptions(options: ResolveOptionsInput = {}): ResolveOption
   return {
     browser: options.browser ?? (process.env.BROWSER as BrowserName | undefined) ?? 'chrome',
     headless: options.headless ?? process.env.HEADLESS === 'true',
-    useUserProfile: options.useUserProfile ?? process.env.USE_USER_PROFILE === 'true',
+    useUserProfile: options.useUserProfile ?? process.env.USE_USER_PROFILE !== 'false',
     port: options.port ?? Number(process.env.BROWSE_AGENT_PORT || 9315),
     timeout: options.timeout ?? Number(process.env.CONNECTION_TIMEOUT || 30000),
     secret: options.secret ?? process.env.SHARED_SECRET ?? '',

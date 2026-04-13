@@ -34,6 +34,16 @@ function toCommandRequest(value: Record<string, unknown>): CommandRequest {
 let currentSession: SessionData | null = null;
 let currentAgent: any | null = null;
 
+function isProcessAlive(pid: number | undefined): boolean {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getServicePort(): number {
   const index = process.argv.findIndex((arg) => arg === '--service-port');
   if (index !== -1 && process.argv[index + 1]) {
@@ -65,12 +75,19 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 function sessionInfo(session: SessionData | null): Record<string, unknown> {
   if (!session) return { running: false };
   const { _agent, _proc, ...info } = session;
-  return { running: true, ...info };
+  const connected = Boolean(_agent?.isConnected);
+  return { running: true, connected, ...info };
 }
 
 async function handleLaunch(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (currentSession && currentAgent) {
-    return sessionInfo(currentSession);
+    const connected = Boolean(currentAgent?.isConnected);
+    const browserAlive = isProcessAlive(currentSession.pid);
+    if (connected && browserAlive) {
+      return sessionInfo(currentSession);
+    }
+
+    await stopBrowserSession();
   }
 
   const options = {

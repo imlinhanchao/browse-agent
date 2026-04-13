@@ -6,7 +6,7 @@ argument-hint: "URL to visit, or describe what data to extract from the web"
 
 # Browse Agent — Web Browsing & Data Extraction
 
-Control a real Chrome browser to visit web pages, extract content, take screenshots, query DOM elements, and run JavaScript — all via `browse-agent-sdk`.
+Control a real Chrome browser to visit web pages, extract content, take screenshots, query DOM elements, and run JavaScript.
 
 ## Prerequisites
 
@@ -20,7 +20,13 @@ npm install -g browse-agent-cli
 browse-agent setup
 ```
 
-Auto-detects local vs global mode. Use `--global` to force global installation in `~/.browse-agent/`. The setup checks existing state — if already installed, it exits immediately.
+`setup` now opens the Chrome Web Store page in the selected browser and waits for installation detection.
+
+Important for AI agents:
+- Always remind the user to run `browse-agent setup` before first use.
+- Explicitly remind the user to click **Add to Chrome** on the Web Store page (installation cannot be silent in normal user environments).
+- `setup` exits immediately if it detects the extension is already installed.
+- Do NOT use `--headless` unless the user explicitly asks for headless/silent/background mode. Default launch should always open a visible browser window.
 
 ## Usage Procedure — Step-by-Step (Recommended)
 
@@ -80,8 +86,7 @@ Each step is independent. If the page content isn't what you expected, you can n
 
 | Option | Applies to | Description |
 |---|---|---|
-| `--global` | setup, clear | Use global installation (`~/.browse-agent/`) |
-| `--browser <name>` | launch | `chrome` \| `chromium` \| `edge` \| `brave` (default: chrome) |
+| `--browser <name>` | setup, launch | `chrome` \| `chromium` \| `edge` \| `brave` (default: chrome) |
 | `--headless` | launch | Run without visible window |
 | `--port <number>` | launch, connect, feature cmds | WebSocket port (default: 9315) |
 | `--tabId <id>` | all feature cmds | Target a specific tab (ID from `navigate` or `tabs list`) |
@@ -116,8 +121,7 @@ For full API and script examples, see [API Reference](./references/api.md) and [
 ## Cleanup
 
 ```bash
-browse-agent clear           # remove local installation
-browse-agent clear --global   # remove global installation
+browse-agent clear           # remove local runtime data
 ```
 
 ## References

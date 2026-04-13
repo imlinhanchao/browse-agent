@@ -11,7 +11,6 @@ browse-agent <command> [options]
 ```bash
 # Setup (install SDK + extension)
 browse-agent setup
-browse-agent setup --global
 
 # Launch browser
 browse-agent launch
@@ -26,7 +25,6 @@ browse-agent close
 
 # Remove installation
 browse-agent clear
-browse-agent clear --global
 ```
 
 ## Feature Commands
@@ -65,8 +63,7 @@ browse-agent tabs close 123
 
 | Option | Applies to | Description |
 |---|---|---|
-| `--global` | setup, clear | Use global installation (`~/.browse-agent/`) |
-| `--browser <name>` | launch | Browser: `chrome` \| `chromium` \| `edge` \| `brave` |
+| `--browser <name>` | launch, setup | Browser: `chrome` \| `chromium` \| `edge` \| `brave` |
 | `--headless` | launch | Run in headless mode |
 | `--server-only` | launch | Start service only, skip browser launch |
 | `--port <number>` | launch, connect, feature cmds | WebSocket port (default: 9315) |

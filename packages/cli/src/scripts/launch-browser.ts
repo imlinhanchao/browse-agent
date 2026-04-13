@@ -1,5 +1,8 @@
-import { spawn } from 'node:child_process';
-import { findBrowser, getProfileDir, importSdk, patchExtension, resolveOptions, saveSession, type SessionData } from './config';
+import { execSync, spawn } from 'node:child_process';
+import { findBrowser, getProfileDir, importSdk, resolveOptions, saveSession, type SessionData } from './config';
+
+const BROWSE_AGENT_WEBSTORE_URL =
+  'https://chromewebstore.google.com/detail/browse-agent/amfbnjpgfgappenkkklkogngmoeofeae?authuser=0&hl=zh-CN';
 
 interface LaunchOptions {
   browser?: 'chrome' | 'chromium' | 'edge' | 'brave';
@@ -13,17 +16,41 @@ interface LaunchOptions {
 export async function launchBrowser(options: LaunchOptions = {}): Promise<SessionData> {
   const { BrowserAgent } = await importSdk();
   const opts = resolveOptions(options);
-  const extensionWork = patchExtension(opts.port, opts.secret);
   const profileDir = getProfileDir(opts.browser, opts.useUserProfile ?? true);
+
+  // Kill existing browser processes using the same profile to allow --load-extension to work.
+  try {
+    if (process.platform === 'win32') {
+      execSync('taskkill /F /IM chrome.exe /IM msedge.exe /IM brave.exe 2>nul', { stdio: 'ignore' });
+    } else {
+      if (opts.useUserProfile) {
+        const processMap: Record<string, string[]> = {
+          chrome: ['Google Chrome'],
+          chromium: ['Chromium'],
+          edge: ['Microsoft Edge'],
+          brave: ['Brave Browser'],
+        };
+        for (const processName of processMap[opts.browser] || []) {
+          execSync(`pkill -x "${processName}" 2>/dev/null || true`, { stdio: 'pipe', shell: '/bin/sh' } as object);
+        }
+      } else {
+        execSync(`pkill -f "user-data-dir=${profileDir}" 2>/dev/null || true`, { stdio: 'pipe', shell: '/bin/sh' } as object);
+      }
+    }
+  } catch {
+    // Ignore errors — no process to kill is fine.
+  }
 
   const agent = new BrowserAgent({ secret: opts.secret, port: opts.port });
   await agent.start();
   console.error(`[browse-agent] Server started on port ${opts.port}`);
 
   const launchArgs = [
-    `--load-extension=${extensionWork}`,
+    `--user-data-dir=${profileDir}`,
     '--no-first-run',
     '--no-default-browser-check',
+    '--new-window',
+    BROWSE_AGENT_WEBSTORE_URL,
   ];
 
   if (opts.headless) launchArgs.push('--headless=new');
@@ -44,7 +71,7 @@ export async function launchBrowser(options: LaunchOptions = {}): Promise<Sessio
     secret: opts.secret,
     browser: opts.browser,
     profileDir,
-    extensionWork,
+    extensionWork: 'chrome-webstore:amfbnjpgfgappenkkklkogngmoeofeae',
     startedAt: new Date().toISOString(),
     _agent: agent,
     _proc: proc,
@@ -52,6 +79,7 @@ export async function launchBrowser(options: LaunchOptions = {}): Promise<Sessio
 
   saveSession(session);
   console.error(`[browse-agent] Browser launched (PID: ${proc.pid})`);
+  console.error('[browse-agent] Opened Chrome Web Store page. Please click "Add to Chrome" if not installed.');
 
   return session;
 }

@@ -116,7 +116,7 @@ Examples:
 
 function resolveSkillSourceDir(): string {
   const runtimeDir = dirname(fileURLToPath(import.meta.url));
-  return join(runtimeDir, '..', 'skill');
+  return join(runtimeDir, '..', 'skills');
 }
 
 function isNonEmptyDirectory(path: string): boolean {
@@ -312,7 +312,7 @@ try {
 
       if (!service.newlyStarted) {
         const status = await requestService<Record<string, unknown>>(servicePort, '/status', 'GET');
-        if (status.running === true) {
+        if (status.running === true && status.connected === true) {
           console.log(JSON.stringify({ servicePort, skipped: 'service-and-browser-already-running', ...status }, null, 2));
           break;
         }
