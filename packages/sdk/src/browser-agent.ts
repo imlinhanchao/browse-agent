@@ -25,8 +25,10 @@ export interface BrowserAgentOptions {
   secret?: string;
   /** WebSocket server port (default: 9315) */
   port?: number;
-  /** WebSocket server host (default: 127.0.0.1) */
+  /** WebSocket server host (default: 127.0.0.1, or 0.0.0.0 when allowRemote is true) */
   host?: string;
+  /** Allow non-localhost connections (default: false). When true, binds to 0.0.0.0. */
+  allowRemote?: boolean;
   /** Default command timeout in ms (default: 30000) */
   timeout?: number;
 }
@@ -66,7 +68,8 @@ export class BrowserAgent {
     this.server = new WSServer({
       secret: options.secret ?? '',
       port: options.port ?? DEFAULT_PORT,
-      host: options.host ?? '127.0.0.1',
+      host: options.host,
+      allowRemote: options.allowRemote,
     });
   }
 

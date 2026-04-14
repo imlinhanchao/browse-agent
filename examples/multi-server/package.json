@@ -1,0 +1,25 @@
+{
+  "name": "browse-agent-multi-server",
+  "version": "1.0.0",
+  "description": "Multi-instance browser control server built on browse-agent-sdk",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build:client": "cd client && npm run build",
+    "install:client": "cd client && npm install"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "sqlite3": "^5.1.7",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.0"
+  }
+}
