@@ -40,6 +40,11 @@
   "bugs": {
     "url": "https://github.com/imlinhanchao/browse-agent/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imlinhanchao/browse-agent.git",
+    "directory": "packages/cli"
+  },
   "homepage": "https://github.com/imlinhanchao/browse-agent#readme",
   "author": {
     "name": "Hancel.Lin",
